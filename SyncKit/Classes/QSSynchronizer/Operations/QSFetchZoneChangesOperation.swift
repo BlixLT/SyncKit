@@ -132,6 +132,7 @@ public class QSFetchZoneChangesOperation: QSCloudKitSynchronizerOperation {
                     self.completion(self.zoneResults)
                     self.finish(error: nil)
                 }
+                self.operation = nil;
             }
         }
         

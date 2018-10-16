@@ -10,7 +10,7 @@
 #import "SyncKitLog.h"
 #import "QSBackupDetection.h"
 #import "QSCloudKitSynchronizer+Private.h"
-#import <SyncKit/SyncKit-Swift.h>
+#import <MoneyCore/MoneyCore-Swift.h>
 #import <CloudKit/CloudKit.h>
 
 #define callBlockIfNotNil(block, ...) if (block){block(__VA_ARGS__);}
