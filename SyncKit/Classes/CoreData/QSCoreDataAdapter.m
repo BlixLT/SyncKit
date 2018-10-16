@@ -555,7 +555,17 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
                     NSURL *fileURL = [self.tempFileManager storeData:(NSData *)value];
                     CKAsset *asset = [[CKAsset alloc] initWithFileURL:fileURL];
                     record[attributeName] = asset;
-                } else {
+                }
+                else if (attributeDescription.attributeType == NSTransformableAttributeType)
+                {
+                    NSData *encodedValue = nil;
+                    if (value)
+                    {
+                        encodedValue = [NSKeyedArchiver archivedDataWithRootObject:value];
+                    }
+                    record[attributeName] = encodedValue;
+                }
+                else {
                     record[attributeName] = value;
                 }
             }
@@ -891,7 +901,8 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
                         if ([record[attributeName] isKindOfClass:[CKAsset class]]) {
                             CKAsset *asset = record[attributeName];
                             recordChanges[attributeName] = [NSData dataWithContentsOfURL:asset.fileURL];
-                        } else {
+                        }
+                        else {
                             recordChanges[attributeName] = record[attributeName] ?: [NSNull null];
                         }
                     }
@@ -921,7 +932,17 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
     if ([value isKindOfClass:[CKAsset class]]) {
         NSData *data = [NSData dataWithContentsOfURL:[(CKAsset *)value fileURL]];
         [object setValue:data forKey:attributeName];
-    } else {
+    }
+    else if (object.entity.attributesByName[attributeName].attributeType == NSTransformableAttributeType)
+    {
+        NSData *decodedValue = nil;
+        if (value)
+        {
+            decodedValue = [NSKeyedUnarchiver unarchiveObjectWithData:value];
+        }
+        [object setValue:decodedValue forKey:attributeName];
+    }
+    else {
         [object setValue:value forKey:attributeName];
     }
 }
