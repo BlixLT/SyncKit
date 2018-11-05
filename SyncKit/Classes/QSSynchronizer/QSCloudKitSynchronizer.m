@@ -247,13 +247,20 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
             if (changedZoneIDs.count) {
                 [self loadTokensForZoneIDs:changedZoneIDs];
                 NSArray *toFetchZoneIDs = [self filteredZoneIDs:changedZoneIDs managedByManagerIn:self.modelAdapters];
-                [self fetchZoneChanges:toFetchZoneIDs withCompletion:^() {
-                    
-                    [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
-                        [self resetActiveTokens];
-                        callBlockIfNotNil(completion, databaseToken, error);
+                if (toFetchZoneIDs.count)
+                {
+                    [self fetchZoneChanges:toFetchZoneIDs withCompletion:^() {
+                        
+                        [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
+                            [self resetActiveTokens];
+                            callBlockIfNotNil(completion, databaseToken, error);
+                        }];
                     }];
-                }];
+                }
+                else
+                {
+                    callBlockIfNotNil(completion, databaseToken, nil);
+                }
             } else {
                 callBlockIfNotNil(completion, databaseToken, nil);
             }
