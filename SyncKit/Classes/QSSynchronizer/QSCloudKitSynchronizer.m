@@ -83,6 +83,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         self.compatibilityVersion = 0;
         self.syncMode = QSCloudKitSynchronizeModeSync;
         self.database = database;
+        self.ignoreChangesFromCloudKit = NO;
         
         [QSBackupDetection runBackupDetectionWithCompletion:^(QSBackupDetectionResult result, NSError *error) {
             if (result == QSBackupDetectionResultRestoredFromBackup) {
@@ -236,40 +237,98 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     }
 }
 
+- (void)fetchQueryChangesForRecordType:(NSString *)recordType cursor:(CKQueryCursor *)cursor completion:(void(^)(NSError *error))completion
+{
+    CKQueryOperation *operation = nil;
+    if (cursor)
+    {
+        operation = [[CKQueryOperation alloc] initWithCursor:cursor];
+    }
+    else
+    {
+        CKQuery *query = [[CKQuery alloc] initWithRecordType:recordType predicate:[NSPredicate predicateWithFormat:@"uniqueIdentifier != '11'"]];
+        operation = [[CKQueryOperation alloc] initWithQuery:query];
+    }
+    
+    NSMutableArray *downloadedRecords = [NSMutableArray array];
+    operation.recordFetchedBlock = ^(CKRecord * _Nonnull record) {
+        [downloadedRecords addObject:record];
+    };
+    operation.queryCompletionBlock = ^(CKQueryCursor * _Nullable cursor, NSError * _Nullable operationError) {
+        
+        id<QSModelAdapter> modelAdapter = self.modelAdapters.firstObject;
+        DLog(@"QSCloudKitSynchronizer >> Downloaded %ld records", (unsigned long)downloadedRecords.count);
+        [modelAdapter saveChangesInRecords:downloadedRecords];
+        if (cursor)
+        {
+            [self fetchQueryChangesForRecordType:recordType cursor:cursor completion:completion];
+        }
+        else
+        {
+            callBlockIfNotNil(completion, operationError);
+        }
+    };
+    [self.database addOperation:operation];
+
+}
+
 - (void)fetchDatabaseChangesWithCompletion:(void(^)(CKServerChangeToken *databaseToken, NSError *error))completion
 {
-    QSFetchDatabaseChangesOperation *operation = [[QSFetchDatabaseChangesOperation alloc] initWithDatabase:self.database
-                                                                                             databaseToken:self.serverChangeToken
-                                                                                                completion:^(CKServerChangeToken * _Nullable databaseToken, NSArray<CKRecordZoneID *> * _Nonnull changedZoneIDs, NSArray<CKRecordZoneID *> * _Nonnull deletedZoneIDs) {
-        dispatch_async(self.dispatchQueue, ^{
-            [self notifyProviderForDeletedZoneIDs:deletedZoneIDs];
-            
-            if (changedZoneIDs.count) {
-                [self loadTokensForZoneIDs:changedZoneIDs];
-                NSArray *toFetchZoneIDs = [self filteredZoneIDs:changedZoneIDs managedByManagerIn:self.modelAdapters];
-                if (toFetchZoneIDs.count)
-                {
-                    [self fetchZoneChanges:toFetchZoneIDs withCompletion:^() {
-                        
-                        [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
-                            [self resetActiveTokens];
-                            callBlockIfNotNil(completion, databaseToken, error);
-                        }];
-                    }];
-                }
-                else
-                {
-                    callBlockIfNotNil(completion, databaseToken, nil);
-                }
-            } else {
-                callBlockIfNotNil(completion, databaseToken, nil);
-            }
-            
-        });
-                                                                                                    
-    }];
-    
-    [self runOperation:operation];
+    if (self.database.databaseScope == CKDatabaseScopePublic)
+    {
+        // fetch zone changes not supported in public db. We will use query operation
+        if (self.ignoreChangesFromCloudKit)
+        {
+            [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
+                [self resetActiveTokens];
+                callBlockIfNotNil(completion, nil, error);
+            }];
+        }
+        else
+        {
+            [self fetchQueryChangesForRecordType:@"Payee" cursor:nil completion:^(NSError *error) {
+                [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
+                    [self resetActiveTokens];
+                    callBlockIfNotNil(completion, nil, error);
+                }];
+            }];
+        }
+    }
+    else
+    {
+        QSFetchDatabaseChangesOperation *operation = [[QSFetchDatabaseChangesOperation alloc] initWithDatabase:self.database
+                                                                                                 databaseToken:self.serverChangeToken
+                                                                                                    completion:^(CKServerChangeToken * _Nullable databaseToken, NSArray<CKRecordZoneID *> * _Nonnull changedZoneIDs, NSArray<CKRecordZoneID *> * _Nonnull deletedZoneIDs) {
+                                                                                                        dispatch_async(self.dispatchQueue, ^{
+                                                                                                            [self notifyProviderForDeletedZoneIDs:deletedZoneIDs];
+                                                                                                            
+                                                                                                            if (changedZoneIDs.count) {
+                                                                                                                [self loadTokensForZoneIDs:changedZoneIDs];
+                                                                                                                NSArray *toFetchZoneIDs = [self filteredZoneIDs:changedZoneIDs managedByManagerIn:self.modelAdapters];
+                                                                                                                if (toFetchZoneIDs.count)
+                                                                                                                {
+                                                                                                                    [self fetchZoneChanges:toFetchZoneIDs withCompletion:^() {
+                                                                                                                        
+                                                                                                                        [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
+                                                                                                                            [self resetActiveTokens];
+                                                                                                                            callBlockIfNotNil(completion, databaseToken, error);
+                                                                                                                        }];
+                                                                                                                    }];
+                                                                                                                }
+                                                                                                                else
+                                                                                                                {
+                                                                                                                    callBlockIfNotNil(completion, databaseToken, nil);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                callBlockIfNotNil(completion, databaseToken, nil);
+                                                                                                            }
+                                                                                                            
+                                                                                                        });
+                                                                                                        
+                                                                                                    }];
+        
+        [self runOperation:operation];
+    }
 }
 
 - (void)loadTokensForZoneIDs:(NSArray *)zoneIDs
@@ -327,7 +386,8 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                     DLog(@"QSCloudKitSynchronizer >> Downloaded %ld changed records >> from zone %@", (unsigned long)zoneResult.downloadedRecords.count, zoneID);
                     DLog(@"QSCloudKitSynchronizer >> Downloaded %ld deleted record IDs >> from zone %@", (unsigned long)zoneResult.deletedRecordIDs.count, zoneID);
                     self.activeZoneTokens[zoneID] = zoneResult.serverChangeToken;
-                    [modelAdapter saveChangesInRecords:zoneResult.downloadedRecords];
+                    NSArray *downloadedRecords = [self filteredRecordsForDatabaseScope:zoneResult.downloadedRecords];
+                    [modelAdapter saveChangesInRecords:downloadedRecords];
                     [modelAdapter deleteRecordsWithIDs:zoneResult.deletedRecordIDs];
                     if (zoneResult.moreComing) {
                         [pendingZones addObject:zoneID];
@@ -364,6 +424,11 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         NSMutableSet *modelAdapters = [NSMutableSet set];
         for (CKRecordZoneID *zoneID in self.activeZoneTokens.allKeys) {
             [modelAdapters addObject:self.modelAdapterDictionary[zoneID]];
+        }
+        if (self.database.databaseScope == CKDatabaseScopePublic)
+        {
+            // public db has only 1 adapter
+            modelAdapters = [NSMutableSet setWithArray:self.modelAdapters];
         }
         [self mergeChanges:modelAdapters completion:^(NSError *error) {
             callBlockIfNotNil(completion, error);
@@ -474,9 +539,38 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     }
 }
 
+- (NSArray *)filteredRecordsForDatabaseScope:(NSArray *)originalRecords
+{
+    if (self.database.databaseScope == CKDatabaseScopeShared)
+    {
+        return originalRecords;
+    }
+    else
+    {
+        NSSet *publicEntityNames = [self publicEntityNames];
+        NSMutableArray *recordsMutable = [NSMutableArray arrayWithCapacity:originalRecords.count];
+        [originalRecords enumerateObjectsUsingBlock:^(CKRecord  * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            NSString *entityName = [[[obj recordID].recordName componentsSeparatedByString:@"."] firstObject];
+            if ((self.database.databaseScope == CKDatabaseScopePublic && [publicEntityNames containsObject:entityName]) || (self.database.databaseScope != CKDatabaseScopePublic && ![publicEntityNames containsObject:entityName]))
+            {
+                [recordsMutable addObject:obj];
+            }
+        }];
+        NSArray *records = [recordsMutable copy];
+        NSLog(@"originalRecords: %ld, records: %ld", (long)originalRecords.count, (long)records.count);
+        return records;
+    }
+}
+
+- (NSSet *)publicEntityNames
+{
+    return [NSSet setWithObjects:@"Payee", @"Category", @"PayeePlacemark", @"Icon", nil];
+}
+
 - (void)uploadEntitiesForModelAdapter:(id<QSModelAdapter>)modelAdapter withCompletion:(void(^)(NSError *error))completion
 {
     NSArray *records = [modelAdapter recordsToUploadWithLimit:self.batchSize];
+    records = [self filteredRecordsForDatabaseScope:records];
     NSInteger recordCount = records.count;
     NSInteger requestedBatchSize = self.batchSize;
     if (recordCount == 0) {
@@ -575,6 +669,11 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)synchronizationUpdateServerTokens
 {
+    if (self.database.databaseScope == CKDatabaseScopePublic)
+    {
+        [self finishSynchronizationWithError:nil];
+        return;
+    }
     void (^completionBlock)(CKServerChangeToken * _Nullable, NSArray<CKRecordZoneID *> * _Nonnull, NSArray<CKRecordZoneID *> * _Nonnull) = ^(CKServerChangeToken * _Nullable databaseToken, NSArray<CKRecordZoneID *> * _Nonnull changedZoneIDs, NSArray<CKRecordZoneID *> * _Nonnull deletedZoneIDs) {
         
         [self notifyProviderForDeletedZoneIDs:deletedZoneIDs];
@@ -660,6 +759,10 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
             [[NSNotificationCenter defaultCenter] postNotificationName:QSCloudKitSynchronizerDidSynchronizeNotification object:self];
         }
         
+        if (!error)
+        {
+            self.ignoreChangesFromCloudKit = YES;
+        }
         callBlockIfNotNil(self.completion, error);
         self.completion = nil;
     });

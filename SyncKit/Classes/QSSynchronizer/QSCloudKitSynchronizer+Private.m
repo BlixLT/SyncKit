@@ -36,7 +36,7 @@ static NSString * const QSDatabaseServerChangeTokenKey = @"QSDatabaseServerChang
 
 - (NSString *)storeKeyForDatabase:(CKDatabase *)database
 {
-    return [self userDefaultsKeyForKey:database.databaseScope == CKDatabaseScopePrivate ? @"privateDatabase" : @"sharedDatabase"];
+    return [self userDefaultsKeyForKey:database.databaseScope == CKDatabaseScopePrivate ? @"privateDatabase" : database.databaseScope == CKDatabaseScopeShared ? @"sharedDatabase" : @"publicDatabase"];
 }
 
 - (NSString *)getStoredDeviceUUID

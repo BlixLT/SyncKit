@@ -181,6 +181,8 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
  */
 - (void)eraseRemoteAndLocalDataForModelAdapter:(nonnull id<QSModelAdapter>)modelAdapter withCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
+@property (nonatomic, assign) BOOL ignoreChangesFromCloudKit;
+
 @end
 
 /**
