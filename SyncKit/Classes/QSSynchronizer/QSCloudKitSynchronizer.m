@@ -237,6 +237,26 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     }
 }
 
+- (void)fetchQueryChangesForRecordTypes:(NSSet *)recordTypes completion:(void(^)(NSError *error))completion
+{
+    if (recordTypes.count == 0)
+    {
+        if (completion != NULL)
+        {
+            completion(nil);
+        }
+        return;
+    }
+    NSMutableSet *recordTypesMutable = recordTypes.mutableCopy;
+    NSString *recordType = recordTypesMutable.anyObject;
+    [recordTypesMutable removeObject:recordType];
+    NSSet *recordTypesRemaining = recordTypesMutable.copy;
+    [self fetchQueryChangesForRecordType:recordType cursor:nil completion:^(NSError *error) {
+        [self fetchQueryChangesForRecordTypes:recordTypesRemaining completion:completion];
+    }];
+}
+
+
 - (void)fetchQueryChangesForRecordType:(NSString *)recordType cursor:(CKQueryCursor *)cursor completion:(void(^)(NSError *error))completion
 {
     CKQueryOperation *operation = nil;
@@ -286,7 +306,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         }
         else
         {
-            [self fetchQueryChangesForRecordType:@"Payee" cursor:nil completion:^(NSError *error) {
+            [self fetchQueryChangesForRecordTypes:[self publicEntityNames] completion:^(NSError *error) {
                 [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
                     [self resetActiveTokens];
                     callBlockIfNotNil(completion, nil, error);
