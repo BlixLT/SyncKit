@@ -64,7 +64,7 @@ import Foundation
      - completion: Closure that gets called with an optional error when the operation is completed.
      
      */
-    @objc public func share(object: Any, publicPermission: CKShare.Participant.Permission, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
+    @objc public func share(object: Any, publicPermission: CKShare.Participant.Permission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
         
         guard let modelAdapter = modelAdapter(for: object),
         let record = modelAdapter.record(for: object) else {
@@ -77,6 +77,11 @@ import Foundation
         }
         
         addMetadata(toRecords: [record, share])
+        
+        for (key, value) in extraShareAttributes
+        {
+            share[key] = value;
+        }
         
         let operation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
         
