@@ -648,6 +648,11 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     
     [self resetActiveTokens];
     
+    if ([self isChangeTokenExpiredError:error])
+    {
+        self.serverChangeToken = nil;
+    }
+
     for (id<QSModelAdapter> modelAdapter in self.modelAdapters) {
         [modelAdapter didFinishImportWithError:error];
     }
@@ -665,6 +670,20 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     });
     
     DLog(@"QSCloudKitSynchronizer >> Finishing synchronization");
+}
+
+- (BOOL)isChangeTokenExpiredError:(NSError *)error
+{
+    if (error.code == CKErrorPartialFailure) {
+        NSDictionary *errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey];
+        for (NSError *anError in [errorsByItemID allValues]) {
+            if (anError.code == CKErrorChangeTokenExpired) {
+                return YES;
+            }
+        }
+    }
+    
+    return error.code == CKErrorChangeTokenExpired;
 }
 
 #pragma mark - Utilities
