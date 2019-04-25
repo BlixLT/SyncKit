@@ -297,7 +297,7 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
     syncedEntity.updated = [NSDate date];
     syncedEntity.originObjectID = identifier;
     
-    syncedEntity.identifier = [NSString stringWithFormat:@"%@.%@", entityName, identifier];
+    syncedEntity.identifier = [NSString stringWithFormat:@"%@%@%@", entityName, @"#",identifier];
 }
 
 - (NSArray *)entitiesWithState:(QSSyncedEntityState)state
