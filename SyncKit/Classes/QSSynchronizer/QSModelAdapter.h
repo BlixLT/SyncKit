@@ -123,26 +123,26 @@ static NSString * _Nonnull const QSModelAdapterHasChangesNotification = @"QSMode
  *
  *  @param object Model object.
  */
-- (nullable CKRecord *)recordForObject:(id)object;
+- (nullable CKRecord *)recordForObject:(nullable id)object;
 /**
  *  Returns CKShare for the given model object, if one exists.
  *
  *  @param object Model object.
  */
-- (nullable CKShare *)shareForObject:(id)object NS_AVAILABLE(10.12, 10.0);
+- (nullable CKShare *)shareForObject:(nullable id)object NS_AVAILABLE(10.12, 10.0);
 /**
  *  Store CKShare for given model object.
  *
  *  @param share CKShare object to save.
  *  @param object Model object.
  */
-- (void)saveShare:(nonnull CKShare *)share forObject:(id)object NS_AVAILABLE(10.12, 10.0);
+- (void)saveShare:(nonnull CKShare *)share forObject:(nullable id)object NS_AVAILABLE(10.12, 10.0);
 /**
  *  Delete existing CKShare for given model object.
  *
  *  @param object Model object.
  */
-- (void)deleteShareForObject:(id)object NS_AVAILABLE(10.12, 10.0);
+- (void)deleteShareForObject:(nullable id)object NS_AVAILABLE(10.12, 10.0);
 
 /**
  *  Returns record zone ID managed by this adapter
@@ -175,6 +175,6 @@ static NSString * _Nonnull const QSModelAdapterHasChangesNotification = @"QSMode
 
 @optional
 
-- (NSArray<CKRecord *> *)recordsToUpdateParentRelationshipsForRoot:(id)object;
+- (nullable NSArray<CKRecord *> *)recordsToUpdateParentRelationshipsForRoot:(nullable id)object;
 
 @end
