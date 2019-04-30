@@ -711,10 +711,37 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 - (void)runOperation:(QSCloudKitSynchronizerOperation *)operation
 {
     operation.errorHandler = ^(QSCloudKitSynchronizerOperation * _Nonnull operation, NSError * _Nonnull error) {
-        [self finishSynchronizationWithError:error];
+        if ([self isZoneNotFoundPartialError:error] && self.modelAdapters.count > 0)
+        {
+            // sometimes after wipe zone is being returned as changed and synckit does not handle it properly. This should fix such very rare? cases
+            [self setupRecordZoneIfNeeded:self.modelAdapters.firstObject completion:^(NSError *setupZoneError) {
+                [setupZoneError log];
+                [self finishSynchronizationWithError:error];
+            }];
+        }
+        else
+        {
+            [self finishSynchronizationWithError:error];
+        }
     };
     self.currentOperation = operation;
     [self.operationQueue addOperation:operation];
+}
+
+- (BOOL)isZoneNotFoundPartialError:(NSError *)error
+{
+    if (error.code == CKErrorPartialFailure)
+    {
+        NSDictionary *errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey];
+        for (NSError *anError in [errorsByItemID allValues])
+        {
+            if (anError.code == CKErrorZoneNotFound || anError.code == CKErrorUserDeletedZone)
+            {
+                return YES;
+            }
+        }
+    }
+    return NO;
 }
 
 - (void)notifyProviderForDeletedZoneIDs:(NSArray<CKRecordZoneID *> *)zoneIDs
