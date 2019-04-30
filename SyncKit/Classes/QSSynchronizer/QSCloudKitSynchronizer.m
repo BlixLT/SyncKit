@@ -488,9 +488,24 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         //Now perform the operation
         CKModifyRecordsOperation *modifyRecordsOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:records recordIDsToDelete:nil];
         
+        NSMutableArray *recordsToSave = [NSMutableArray array];
+        modifyRecordsOperation.perRecordCompletionBlock = ^(CKRecord *record, NSError *error) {
+            dispatch_async(self.dispatchQueue, ^{
+                if (error.code == CKErrorServerRecordChanged) {
+                    //Update local data with server
+                    CKRecord *aRecord = error.userInfo[CKRecordChangedErrorServerRecordKey];
+                    if (aRecord) {
+                        [recordsToSave addObject:aRecord];
+                    }
+                }
+            });
+        };
+        
         modifyRecordsOperation.modifyRecordsCompletionBlock = ^(NSArray <CKRecord *> *savedRecords, NSArray <CKRecordID *> *deletedRecordIDs, NSError *operationError) {
             dispatch_async(self.dispatchQueue, ^{
                 
+                [modelAdapter saveChangesInRecords:recordsToSave];
+
                 if (!operationError) {
                     
                     if (self.batchSize < QSDefaultBatchSize) {
