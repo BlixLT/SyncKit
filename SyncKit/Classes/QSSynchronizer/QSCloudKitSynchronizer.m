@@ -715,7 +715,6 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         {
             // sometimes after wipe zone is being returned as changed and synckit does not handle it properly. This should fix such very rare? cases
             [self setupRecordZoneIfNeeded:self.modelAdapters.firstObject completion:^(NSError *setupZoneError) {
-                [setupZoneError log];
                 [self finishSynchronizationWithError:error];
             }];
         }
