@@ -557,32 +557,40 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)removeDeletedEntitiesFromModelAdapter:(id<QSModelAdapter>)modelAdapter completion:(void(^)(NSError *error))completion
 {
-    NSArray *recordIDs = [modelAdapter recordIDsMarkedForDeletionWithLimit:self.batchSize];
-    NSInteger recordCount = recordIDs.count;
-    
-    if (recordCount == 0) {
-        callBlockIfNotNil(completion, nil);
-    } else {
-        //Now perform the operation
-        CKModifyRecordsOperation *modifyRecordsOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:nil recordIDsToDelete:recordIDs];
-        modifyRecordsOperation.modifyRecordsCompletionBlock = ^(NSArray <CKRecord *> *savedRecords, NSArray <CKRecordID *> *deletedRecordIDs, NSError *operationError) {
-            dispatch_async(self.dispatchQueue, ^{
-                DLog(@"QSCloudKitSynchronizer >> Deleted %ld records", (unsigned long)deletedRecordIDs.count);
+    if (modelAdapter)
+    {
+        [modelAdapter recordIDsMarkedForDeletionWithLimit:self.batchSize completion:^(NSArray<CKRecordID *> *recordIDs) {
+            NSInteger recordCount = recordIDs.count;
+            
+            if (recordCount == 0) {
+                callBlockIfNotNil(completion, nil);
+            } else {
+                //Now perform the operation
+                CKModifyRecordsOperation *modifyRecordsOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:nil recordIDsToDelete:recordIDs];
+                modifyRecordsOperation.modifyRecordsCompletionBlock = ^(NSArray <CKRecord *> *savedRecords, NSArray <CKRecordID *> *deletedRecordIDs, NSError *operationError) {
+                    dispatch_async(self.dispatchQueue, ^{
+                        DLog(@"QSCloudKitSynchronizer >> Deleted %ld records", (unsigned long)deletedRecordIDs.count);
+                        
+                        if (operationError.code == CKErrorLimitExceeded) {
+                            self.batchSize = self.batchSize / 2;
+                        } else if (self.batchSize < QSDefaultBatchSize) {
+                            self.batchSize++;
+                        }
+                        
+                        [modelAdapter didDeleteRecordIDs:deletedRecordIDs];
+                        
+                        callBlockIfNotNil(completion,operationError);
+                    });
+                };
                 
-                if (operationError.code == CKErrorLimitExceeded) {
-                    self.batchSize = self.batchSize / 2;
-                } else if (self.batchSize < QSDefaultBatchSize) {
-                    self.batchSize++;
-                }
-                
-                [modelAdapter didDeleteRecordIDs:deletedRecordIDs];
-                
-                callBlockIfNotNil(completion,operationError);
-            });
-        };
-        
-        self.currentOperation = modifyRecordsOperation;
-        [self.database addOperation:modifyRecordsOperation];
+                self.currentOperation = modifyRecordsOperation;
+                [self.database addOperation:modifyRecordsOperation];
+            }
+        }];
+    }
+    else
+    {
+        callBlockIfNotNil(completion,nil);
     }
 }
 

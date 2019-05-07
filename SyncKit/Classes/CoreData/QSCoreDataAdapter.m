@@ -1363,6 +1363,42 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
     }];
 }
 
+- (void)recordIDsMarkedForDeletionWithLimit:(NSInteger)limit completion:(void (^ _Nonnull)(NSArray<CKRecordID *> *))completion
+{
+    if (self.privateContext)
+    {
+        [self.privateContext performBlock:^{
+            NSArray *recordIDArray = nil;
+            NSArray *deletedEntities = [self entitiesWithState:QSSyncedEntityStateDeleted];
+            if (deletedEntities.count == 0) {
+                recordIDArray = @[];
+            } else {
+                NSMutableArray *recordIDs = [NSMutableArray array];
+                
+                for (QSSyncedEntity *entity in [deletedEntities copy]) {
+                    CKRecord *record = [self recordForSyncedEntity:entity];
+                    if (record) {
+                        [recordIDs addObject:record.recordID];
+                    } else {
+                        [self.privateContext deleteObject:entity];
+                    }
+                    
+                    if ((NSInteger)recordIDs.count >= limit) {
+                        break;
+                    }
+                }
+                
+                recordIDArray = recordIDs;
+            }
+            callBlockIfNotNil(completion, recordIDArray);
+        }];
+    }
+    else
+    {
+        callBlockIfNotNil(completion, @[]);
+    }
+}
+
 - (NSArray *)recordIDsMarkedForDeletionWithLimit:(NSInteger)limit
 {
     __block NSArray *recordIDArray = nil;

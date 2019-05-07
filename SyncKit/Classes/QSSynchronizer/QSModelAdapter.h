@@ -95,6 +95,8 @@ static NSString * _Nonnull const QSModelAdapterHasChangesNotification = @"QSMode
  */
 - (nonnull NSArray<CKRecordID *> *)recordIDsMarkedForDeletionWithLimit:(NSInteger)limit;
 
+- (void)recordIDsMarkedForDeletionWithLimit:(NSInteger)limit completion:(void(^_Nonnull)(NSArray<CKRecordID *> * recordIDs))completion;
+
 /**
  *  Tells the change manager that these record identifiers were deleted successfully.
  *
