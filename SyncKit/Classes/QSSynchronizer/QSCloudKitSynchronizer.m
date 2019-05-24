@@ -347,7 +347,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                                                                                            zoneIDs:zoneIDs
                                                                                   zoneChangeTokens:[self.activeZoneTokens copy]
                                                                                       modelVersion:self.compatibilityVersion
-                                                                            ignoreDeviceIdentifier:nil
+                                                                            ignoreDeviceIdentifier:self.deviceIdentifier
                                                                                        desiredKeys:nil
                                                                                         completion:completionBlock];
     [self runOperation:operation];
