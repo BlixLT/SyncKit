@@ -20,7 +20,7 @@
  *
  *  @return Initialized synchronizer.
  */
-+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context;
+//+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context;
 
 /**
  *  Creates a new `QSCloudKitSynchronizer` prepared to work with the given Core Data model and the default SyncKit record zone in the private database.
@@ -31,7 +31,7 @@
  *
  *  @return Initialized synchronizer.
  */
-+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context suiteName:(NSString *)suiteName;
+//+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context suiteName:(NSString *)suiteName;
 
 /**
  *  Creates a new `QSCloudKitSynchronizer` prepared to work with the given Core Data model and the default SyncKit record zone in the private database.
@@ -43,7 +43,7 @@
  *
  *  @return Initialized synchronizer.
  */
-+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context suiteName:(NSString *)suiteName recordZoneID:(CKRecordZoneID *)zoneID;
+//+ (QSCloudKitSynchronizer *)cloudKitPrivateSynchronizerWithContainerName:(NSString *)containerName managedObjectContext:(NSManagedObjectContext *)context suiteName:(NSString *)suiteName recordZoneID:(CKRecordZoneID *)zoneID;
 
 /**
  *  Creates a new `QSCloudKitSynchronizer` prepared to work with the given Core Data model and the CloudKit shared database.

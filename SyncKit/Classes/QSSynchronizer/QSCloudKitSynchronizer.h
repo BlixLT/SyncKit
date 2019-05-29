@@ -19,7 +19,8 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizerErrorCode)
 {
     QSCloudKitSynchronizerErrorAlreadySyncing,
     QSCloudKitSynchronizerErrorHigherModelVersionFound,
-    QSCloudKitSynchronizerErrorCancelled
+    QSCloudKitSynchronizerErrorCancelled,
+    QSCloudKitSynchronizerErrorCompletionBlockNotCalled
 };
 
 typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
@@ -164,7 +165,7 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
  *
  *  @param completion A block that will be called after synchronization ends. The block will receive an `NSError` if an error happened during synchronization.
  */
-- (void)synchronizeWithCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
+- (nullable NSProgress *)synchronizeWithCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
 /**
  *  Cancel an ongoing synchronization.

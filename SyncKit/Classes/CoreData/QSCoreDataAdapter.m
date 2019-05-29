@@ -300,6 +300,36 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
     syncedEntity.identifier = [NSString stringWithFormat:@"%@%@%@", entityName, @"#",identifier];
 }
 
+- (NSInteger)countEntitiesWithState:(QSSyncedEntityState)state
+{
+    NSError *error = nil;
+    NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:@"QSSyncedEntity"];
+    fetchRequest.predicate = [NSPredicate predicateWithFormat:@"state == %lud", state];
+    return [self.privateContext countForFetchRequest:fetchRequest
+                                               error:&error];
+}
+
+- (void)countEntitiesToBeUploadedWithCompletion:(void(^_Nonnull)(NSInteger entitiesCount))completion
+{
+    if (completion == NULL)
+    {
+        DLog(@"completion is nil");
+        return;
+    }
+    
+    if (self.privateContext == nil)
+    {
+        DLog(@"privateContext is nil");
+        NSInteger countEntities = 0;
+        completion(countEntities);
+        return;
+    }
+    [self.privateContext performBlock:^{
+        NSInteger countEntities = [self countEntitiesWithState:QSSyncedEntityStateNew] + [self countEntitiesWithState:QSSyncedEntityStateChanged];
+        completion(countEntities);
+    }];
+}
+
 - (NSArray *)entitiesWithState:(QSSyncedEntityState)state
 {
     NSError *error = nil;
@@ -360,9 +390,25 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
     
     NSMutableDictionary *entitiesByName = [NSMutableDictionary dictionary];
     [objectIDsByRelationshipName enumerateKeysAndObjectsUsingBlock:^(NSString *  _Nonnull relationshipName, NSString *  _Nonnull objectIdentifier, BOOL * _Nonnull stop) {
-        QSSyncedEntity *entity = [self syncedEntityWithOriginObjectIdentifier:objectIdentifier];
-        if (entity) {
-            entitiesByName[relationshipName] = entity;
+        if ([objectIdentifier isKindOfClass:[NSSet class]])
+        {
+            NSSet *objectIdentifiersSet = (NSSet *)objectIdentifier;
+            NSMutableSet *entities = [NSMutableSet setWithCapacity:objectIdentifiersSet.count];
+            [objectIdentifiersSet enumerateObjectsUsingBlock:^(id  _Nonnull objectIdentifier2, BOOL * _Nonnull stop2) {
+                QSSyncedEntity *entity = [self syncedEntityWithOriginObjectIdentifier:objectIdentifier2];
+                if (entity)
+                {
+                    [entities addObject:entity];
+                }
+            }];
+            entitiesByName[relationshipName] = entities;
+        }
+        else
+        {
+            QSSyncedEntity *entity = [self syncedEntityWithOriginObjectIdentifier:objectIdentifier];
+            if (entity) {
+                entitiesByName[relationshipName] = entity;
+            }
         }
     }];
     return [entitiesByName copy];
@@ -1588,6 +1634,38 @@ static const NSString * QSCoreDataAdapterShareRelationshipKey = @"com.syncKit.sh
         records = [self childrenRecordsForSyncedEntity:syncedEntity];
     }];
     return records;
+}
+
+#pragma mark - JSAdditions
+
+- (void)handleRecordsWithUnknownItemError:(NSArray<CKRecord *> *)records
+{
+    if (records.count == 0) {
+        return;
+    }
+    [self.privateContext performBlock:^{
+        DLogInfo(@"handleRecordsWithUnknownItemError: %ld", (long)records.count);
+        NSMutableArray *identifiers = [NSMutableArray arrayWithCapacity:records.count];
+        NSMutableDictionary *entitiesByID = [NSMutableDictionary dictionary];
+        for (CKRecord *record in records)
+        {
+            [identifiers addObject:record.recordID.recordName];
+        }
+        
+        NSArray *syncedEntities = [self syncedEntitiesWithIdentifiers:identifiers];
+        for (QSSyncedEntity *entity in syncedEntities)
+        {
+            entitiesByID[entity.identifier] = entity;
+        }
+        
+        for (CKRecord *record in records)
+        {
+            // because we cannot modify record (cloud kit does not recognize it), we will upload it as new and get rid of cached ckrecord
+            QSSyncedEntity *syncedEntity = entitiesByID[record.recordID.recordName];
+            syncedEntity.state = @(QSSyncedEntityStateNew);
+            syncedEntity.record = nil;
+        };
+    }];
 }
 
 @end

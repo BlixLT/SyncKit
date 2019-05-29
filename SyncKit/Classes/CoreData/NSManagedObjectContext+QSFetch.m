@@ -55,6 +55,7 @@
     if (propertiesToFetch) {
         fetchRequest.propertiesToFetch = propertiesToFetch;
     }
+    fetchRequest.includesSubentities = NO;
     
     return [self executeFetchRequest:fetchRequest error:error];
 }

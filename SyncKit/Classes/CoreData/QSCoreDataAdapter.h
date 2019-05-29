@@ -25,7 +25,7 @@
  *  @param coreDataAdapter The `QSCoreDataAdapter` requesting the delegate to save.
  *  @param completion    Block to be called once the managed object context has been saved.
  */
-- (void)coreDataAdapterRequestsContextSave:(QSCoreDataAdapter *)coreDataAdapter completion:(void(^)(NSError *error))completion;
+- (void)coreDataAdapterRequestsContextSave:(nullable QSCoreDataAdapter *)coreDataAdapter completion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
 /**
  *  Tells the delegate to merge downloaded changes into the managed object context. First, the `importContext` must be saved by using `performBlock`. Then, the target managed object context must be saved to persist those changes and the completion block must be called to finalize the synchronization process.
@@ -34,7 +34,7 @@
  *  @param importContext `NSManagedObjectContext` containing all downloaded changes. This context has the target context as its parent context.
  *  @param completion    Block to be called once contexts have been saved.
  */
-- (void)coreDataAdapter:(QSCoreDataAdapter *)coreDataAdapter didImportChanges:(NSManagedObjectContext *)importContext completion:(void(^)(NSError *error))completion;
+- (void)coreDataAdapter:(QSCoreDataAdapter *_Nullable)coreDataAdapter didImportChanges:(NSManagedObjectContext *_Nullable)importContext completion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
 @end
 
@@ -50,7 +50,7 @@
  *  @param changeDictionary Dictionary containing keys and values with changes for the managed object. Values could be [NSNull null] to represent a nil value.
  *  @param object           The `NSManagedObject` that has changed on iCloud.
  */
-- (void)coreDataAdapter:(QSCoreDataAdapter *)coreDataAdapter gotChanges:(NSDictionary *)changeDictionary forObject:(NSManagedObject *)object;
+- (void)coreDataAdapter:(QSCoreDataAdapter *_Nullable)coreDataAdapter gotChanges:(NSDictionary *_Nullable)changeDictionary forObject:(NSManagedObject *_Nullable)object;
 
 @end
 
@@ -65,7 +65,7 @@
  *
  *  @return The model.
  */
-+ (NSManagedObjectModel *)persistenceModel;
++ (NSManagedObjectModel *_Nonnull)persistenceModel;
 
 /**
  *  Initializes a new `QSCoreDataAdapter`.
@@ -77,26 +77,26 @@
  *
  *  @return Initialized core data change manager.
  */
-- (instancetype)initWithPersistenceStack:(QSCoreDataStack *)stack targetContext:(NSManagedObjectContext *)targetContext recordZoneID:(CKRecordZoneID *)zoneID delegate:(id<QSCoreDataAdapterDelegate>)delegate;
+- (instancetype _Nullable )initWithPersistenceStack:(QSCoreDataStack *_Nullable)stack targetContext:(NSManagedObjectContext *_Nullable)targetContext recordZoneID:(CKRecordZoneID *_Nullable)zoneID delegate:(id<QSCoreDataAdapterDelegate>_Nullable)delegate;
 
 /**
  *  The target context that will be tracked. (read-only)
  */
-@property (nonatomic, readonly) NSManagedObjectContext *targetContext;
+@property (nonatomic, readonly) NSManagedObjectContext * _Nullable targetContext;
 /**
  *  Delegate. (read-only)
  */
-@property (nonatomic, weak, readonly) id<QSCoreDataAdapterDelegate> delegate;
+@property (nonatomic, weak, readonly) id<QSCoreDataAdapterDelegate> _Nullable delegate;
 
-@property (nonatomic, weak) id<QSCoreDataAdapterConflictResolutionDelegate> conflictDelegate;
+@property (nonatomic, weak) id<QSCoreDataAdapterConflictResolutionDelegate> _Nullable conflictDelegate;
 /**
  *  Identifier of record zone that will contain data. (read-only)
  */
-@property (nonatomic, readonly) CKRecordZoneID *recordZoneID;
+@property (nonatomic, readonly) CKRecordZoneID * _Nonnull recordZoneID;
 /**
  *  Core Data stack used for tracking information. (read-only)
  */
-@property (nonatomic, readonly) QSCoreDataStack *stack;
+@property (nonatomic, readonly) QSCoreDataStack * _Nullable stack;
 
 /**
  *  Merge policy to be used in case of conflicts. Default value is `QSModelAdapterMergePolicyServer`
@@ -110,5 +110,8 @@
 
 - (void)updateTrackingForObjectsWithPrimaryKey;
 
+#pragma mark - JSAdditions
+
+- (void)countEntitiesToBeUploadedWithCompletion:(void(^_Nonnull)(NSInteger entitiesCount))completion;
 
 @end

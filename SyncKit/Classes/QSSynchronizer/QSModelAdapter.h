@@ -175,6 +175,10 @@ static NSString * _Nonnull const QSModelAdapterHasChangesNotification = @"QSMode
  */
 @property (nonatomic, assign) QSModelAdapterMergePolicy mergePolicy;
 
+#pragma mark - JSAdditions
+
+- (void)handleRecordsWithUnknownItemError:(nullable NSArray<CKRecord *> *)records;
+
 @optional
 
 - (nullable NSArray<CKRecord *> *)recordsToUpdateParentRelationshipsForRoot:(nullable id)object;

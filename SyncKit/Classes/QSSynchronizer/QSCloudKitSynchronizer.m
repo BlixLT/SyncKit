@@ -23,9 +23,19 @@ NSString * const QSCloudKitSynchronizerDidSynchronizeNotification = @"QSCloudKit
 NSString * const QSCloudKitSynchronizerDidFailToSynchronizeNotification = @"QSCloudKitSynchronizerDidFailToSynchronizeNotification";
 NSString * const QSCloudKitSynchronizerErrorKey = @"QSCloudKitSynchronizerErrorKey";
 
-static const NSInteger QSDefaultBatchSize = 100;
+static const NSInteger QSDefaultBatchSize = 2000;
 NSString * const QSCloudKitDeviceUUIDKey = @"QSCloudKitDeviceUUIDKey";
 NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompatibilityVersionKey";
+
+typedef NS_ENUM(NSInteger, QSSynchronizerSyncStep)
+{
+    QSSynchronizerSyncStepPrepareForImport,
+    QSSynchronizerSyncStepRestoreServerToken,
+    QSSynchronizerSyncStepFetchChanges,
+    QSSynchronizerSyncStepMergeChanges,
+    QSSynchronizerSyncStepUpdateServerToken,
+    QSSynchronizerSyncStepUploadChanges
+};
 
 @interface QSCloudKitSynchronizer ()
 
@@ -40,6 +50,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 @property (atomic, readwrite, assign, getter=isSyncing) BOOL syncing;
 
 @property (nonatomic, assign) NSInteger batchSize;
+@property (nonatomic, assign) BOOL batchSizeWasParsedFromError;
 
 @property (nonatomic, strong, readwrite) NSDictionary *modelAdapterDictionary;
 @property (nonatomic, readwrite, strong) NSString *deviceIdentifier;
@@ -54,6 +65,9 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 @property (nonatomic, readwrite, strong) id<QSKeyValueStore> keyValueStore;
 @property (nonatomic, readwrite, strong) id<QSCloudKitSynchronizerAdapterProvider> adapterProvider;
+
+@property (nonatomic, strong) NSProgress *syncProgress;
+@property (nonatomic, strong) NSProgress *uploadChangesProgress;
 
 @end
 
@@ -127,12 +141,23 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     return metadataKeys;
 }
 
-- (void)synchronizeWithCompletion:(void(^)(NSError *error))completion
+- (NSProgress *)synchronizeWithCompletion:(void(^)(NSError *error))completion
 {
+    DLogInfo(@"<= completion = %d", completion == NULL? NO: YES);
     if (self.isSyncing) {
         callBlockIfNotNil(completion, [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:QSCloudKitSynchronizerErrorAlreadySyncing userInfo:nil]);
-        return;
+        return nil;
     }
+    else if (self.completion != NULL)
+    {
+        // if previous completion is not nil, that means it is not being called yet and sync is not finished.
+        DLog(@"previous completion is not finished yet");
+        callBlockIfNotNil(completion, [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:QSCloudKitSynchronizerErrorAlreadySyncing userInfo:nil]);
+        return nil;
+    }
+    
+    self.syncProgress = [NSProgress progressWithTotalUnitCount:[self totalSyncProgressUnitCount]];
+//    self.syncProgress.localizedDescription = NSLS_COMMON_SYNCHRONIZING;
     
     DLog(@"QSCloudKitSynchronizer >> Initiating synchronization");
     self.cancelSync = NO;
@@ -140,13 +165,45 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
     self.completion = completion;
     [self performSynchronization];
+    
+    return self.syncProgress;
 }
 
 - (void)cancelSynchronization
 {
+#if defined(DEBUG)
+    DLog(@"cancel synchronization: %@", [NSThread callStackSymbols]);
+#else
+    DLogInfo(@"cancel synchronization");
+#endif
     if (self.isSyncing) {
         self.cancelSync = YES;
         [self.currentOperation cancel];
+    }
+}
+
+static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenceContext;
+
+- (void)setCurrentOperation:(CKOperation *)currentOperation
+{
+    _currentOperation = currentOperation;
+    
+    if (_currentOperation)
+    {
+        [_currentOperation addObserver:self forKeyPath:@"isFinished" options:NSKeyValueObservingOptionNew context:MNCurrentOperationObservenceContext];
+        [_currentOperation addObserver:self forKeyPath:@"isCancelled" options:NSKeyValueObservingOptionNew context:MNCurrentOperationObservenceContext];
+    }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context
+{
+    if (context == MNCurrentOperationObservenceContext)
+    {
+        DLogInfo(@"operation [%@] didChange [%@] - %@", object, keyPath, [object valueForKeyPath:keyPath]);
+    }
+    else
+    {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }
 }
 
@@ -202,12 +259,19 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:QSCloudKitSynchronizerWillSynchronizeNotification object:self];
         });
+        DLog(@"QSCloudKitSynchronizer >> performSynchronization.will prepareForImport");
+        NSProgress *prepareForImportProgress = [NSProgress progressWithTotalUnitCount:1];
+        [self.syncProgress addChild:prepareForImportProgress withPendingUnitCount:[self syncProgressUnitCountForStep:QSSynchronizerSyncStepPrepareForImport]];
         
         for (id<QSModelAdapter> modelAdapter in self.modelAdapters) {
             [modelAdapter prepareForImport];
         }
         
+        [prepareForImportProgress setCompletedUnitCount:prepareForImportProgress.totalUnitCount];
+        
+        DLog(@"QSCloudKitSynchronizer >> performSynchronization. will synchronizationFetchChanges");
         [self synchronizationFetchChanges];
+        DLog(@"QSCloudKitSynchronizer >> performSynchronization. did synchronizationFetchChanges");
     });
 }
 
@@ -221,10 +285,15 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:QSCloudKitSynchronizerWillFetchChangesNotification object:self];
         });
+        DLog(@"QDCloudKitSynchronizer >> synchronizationFetchChanges");
+        NSProgress *fetchChangesProgress = [NSProgress progressWithTotalUnitCount:1];
+        [self.syncProgress addChild:fetchChangesProgress withPendingUnitCount:[self syncProgressUnitCountForStep:QSSynchronizerSyncStepFetchChanges]];
+        __weak QSCloudKitSynchronizer *weakSelf = self;
         [self fetchDatabaseChangesWithCompletion:^(CKServerChangeToken *databaseToken, NSError *error) {
             if (error) {
-                [self finishSynchronizationWithError:error];
+                [weakSelf finishSynchronizationWithError:error];
             } else {
+                [fetchChangesProgress setCompletedUnitCount:fetchChangesProgress.totalUnitCount];
                 self.serverChangeToken = databaseToken;
                 if (self.syncMode == QSCloudKitSynchronizeModeSync) {
                     [self synchronizationUploadChanges];
@@ -360,12 +429,15 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     if (self.cancelSync) {
         [self finishSynchronizationWithError:[self cancelError]];
     } else {
-        
+        DLog(@"QSCloudKitSynchronizer >> synchronizarionMergeChanges");
+        NSProgress *mergeChangesProgress = [NSProgress progressWithTotalUnitCount:100];
+        [self.syncProgress addChild:mergeChangesProgress withPendingUnitCount:[self syncProgressUnitCountForStep:QSSynchronizerSyncStepMergeChanges]];
         NSMutableSet *modelAdapters = [NSMutableSet set];
         for (CKRecordZoneID *zoneID in self.activeZoneTokens.allKeys) {
             [modelAdapters addObject:self.modelAdapterDictionary[zoneID]];
         }
         [self mergeChanges:modelAdapters completion:^(NSError *error) {
+            mergeChangesProgress.completedUnitCount = mergeChangesProgress.totalUnitCount;
             callBlockIfNotNil(completion, error);
         }];
     }
@@ -405,6 +477,9 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:QSCloudKitSynchronizerWillUploadChangesNotification object:self];
         });
+        self.uploadChangesProgress = [NSProgress progressWithTotalUnitCount:100];
+        [self.syncProgress addChild:self.uploadChangesProgress withPendingUnitCount:[self syncProgressUnitCountForStep:QSSynchronizerSyncStepUploadChanges]];
+        DLogInfo(@"QSCloudKitSynchronizer >> will upload new and updated objects: count n/a");
         [self uploadChangesWithCompletion:^(NSError *error) {
 
             if (error) {
@@ -414,6 +489,8 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                     [self finishSynchronizationWithError:error];
                 }
             } else {
+                self.uploadChangesProgress.completedUnitCount = self.uploadChangesProgress.totalUnitCount;
+                self.uploadChangesProgress = nil;
                 [self synchronizationUpdateServerTokens];
             }
         }];
@@ -425,6 +502,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     if (self.cancelSync) {
         [self finishSynchronizationWithError:[self cancelError]];
     } else {
+        DLog(@"QSCloudKitSynchronizer >> uploadEntitiesForModelAdapterSet");
         [self uploadEntitiesForModelAdapterSet:[NSSet setWithArray:self.modelAdapters] completion:^(NSError *error) {
             if (error) {
                 callBlockIfNotNil(completion, error);
@@ -440,8 +518,9 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     if (self.cancelSync) {
         [self finishSynchronizationWithError:[self cancelError]];
     } else {
+        DLog(@"QSCloudKitSynchronizer >> uploadDeletionsWithCompletion");
         [self removeDeletedEntitiesFromModelAdapters:[NSSet setWithArray:self.modelAdapters] completion:^(NSError *error) {
-            
+            self.uploadChangesProgress.completedUnitCount = self.uploadChangesProgress.totalUnitCount;
             callBlockIfNotNil(completion, error);
         }];
     }
@@ -452,6 +531,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     if (modelAdapters.count == 0) {
         callBlockIfNotNil(completion, nil);
     } else {
+        DLogInfo(@"<= modelAdapters = %@", modelAdapters);
         __weak QSCloudKitSynchronizer *weakSelf = self;
         id<QSModelAdapter> modelAdapter = [modelAdapters anyObject];
         [self setupRecordZoneIfNeeded:modelAdapter completion:^(NSError *error) {
@@ -479,6 +559,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     NSArray *records = [modelAdapter recordsToUploadWithLimit:self.batchSize];
     NSInteger recordCount = records.count;
     NSInteger requestedBatchSize = self.batchSize;
+    DLogInfo(@"QSCloudKitSynchronizer >> Changes to upload during current operation: %ld for modelAdapter: %@", (long)recordCount, modelAdapter);
     if (recordCount == 0) {
         callBlockIfNotNil(completion, nil);
     } else {
@@ -487,8 +568,11 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
         [self addMetadataToRecords:records];
         //Now perform the operation
         CKModifyRecordsOperation *modifyRecordsOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:records recordIDsToDelete:nil];
-        
+        __weak CKModifyRecordsOperation *weakModifyRecordsOperation = modifyRecordsOperation;
+        [self.class configureCKOperation:modifyRecordsOperation];
+
         NSMutableArray *recordsToSave = [NSMutableArray array];
+        NSMutableArray *recordsWithUnknownItemError = [NSMutableArray array];
         modifyRecordsOperation.perRecordCompletionBlock = ^(CKRecord *record, NSError *error) {
             dispatch_async(self.dispatchQueue, ^{
                 if (error.code == CKErrorServerRecordChanged) {
@@ -498,14 +582,32 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                         [recordsToSave addObject:aRecord];
                     }
                 }
+                else if ([self isUnknownItemError:error])
+                {
+                    //Unknown record to cloudkit. upload is at new
+                    [recordsWithUnknownItemError addObject:record];
+                }
             });
         };
         
+        __block BOOL modifyRecordsCompletionBlockWasCalled = NO;
         modifyRecordsOperation.modifyRecordsCompletionBlock = ^(NSArray <CKRecord *> *savedRecords, NSArray <CKRecordID *> *deletedRecordIDs, NSError *operationError) {
+            modifyRecordsCompletionBlockWasCalled = YES;
             dispatch_async(self.dispatchQueue, ^{
                 
+                DLog(@"QSCloudKitSynchronizer >> modifyRecordsOperation.modifyRecordsCompletionBlock");
+                if (self.cancelSync || weakModifyRecordsOperation.isCancelled)
+                {
+                    callBlockIfNotNil(completion, [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:0 userInfo:@{ QSCloudKitSynchronizerErrorKey : @"Synchronization was cancelled"}]);
+                    return;
+                }
                 [modelAdapter saveChangesInRecords:recordsToSave];
-
+                [modelAdapter handleRecordsWithUnknownItemError:recordsWithUnknownItemError];
+                if (self.cancelSync || weakModifyRecordsOperation.isCancelled)
+                {
+                    callBlockIfNotNil(completion, [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:0 userInfo:@{ QSCloudKitSynchronizerErrorKey : @"Synchronization was cancelled"}]);
+                    return;
+                }
                 if (!operationError) {
                     
                     if (self.batchSize < QSDefaultBatchSize) {
@@ -514,7 +616,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                     
                     [modelAdapter didUploadRecords:savedRecords];
                     
-                    DLog(@"QSCloudKitSynchronizer >> Uploaded %ld records", (unsigned long)savedRecords.count);
+                    DLog(@"QSCloudKitSynchronizer >> Uploaded %ld records, batchSize: %ld", (unsigned long)savedRecords.count, (long)self.batchSize);
                     
                     if (recordCount >= requestedBatchSize) {
                         [weakSelf uploadEntitiesForModelAdapter:modelAdapter withCompletion:completion];
@@ -523,15 +625,28 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                     }
                 } else {
                     if ([self isLimitExceededError:operationError]) {
-                        self.batchSize = self.batchSize / 2;
+                        [self updateBatchSizeFromError:operationError];
                     }
+                    DLog(@"QSCloudKitSynchronizer >> new batchSize: %ld", (long)self.batchSize);
                     
                     callBlockIfNotNil(completion, operationError);
                 }
             });
         };
         
+        modifyRecordsOperation.completionBlock = ^{
+            if (!modifyRecordsCompletionBlockWasCalled && completion != NULL)
+            {
+                // modifyRecordsCompletionBlock was not called
+                NSError *newError = [QSCloudKitSynchronizer completionBlockWasNotCalledError];
+                callBlockIfNotNil(completion, newError);
+            }
+        };
+        
         self.currentOperation = modifyRecordsOperation;
+        NSInteger totalRequestsCount = self.batchSize != 0 ? (NSUInteger)self.uploadChangesProgress.totalUnitCount / self.batchSize : 0;
+        NSInteger currentRequestIndex = self.batchSize != 0 ? (NSUInteger)(self.uploadChangesProgress.completedUnitCount + records.count) / self.batchSize : 0;
+        DLogInfo(@"QSCloudKitSynchronizer >> will upload %ld changes. %ld / %ld requests, batchSuze: %ld", (long)recordCount, (long)currentRequestIndex, (long)totalRequestsCount, (long)self.batchSize);
         [self.database addOperation:modifyRecordsOperation];
     }
 }
@@ -567,14 +682,27 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
             } else {
                 //Now perform the operation
                 CKModifyRecordsOperation *modifyRecordsOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:nil recordIDsToDelete:recordIDs];
+                [self.class configureCKOperation:modifyRecordsOperation];
+                __block BOOL modifyRecordsOperationCompletionBlockWasCalled = NO;
                 modifyRecordsOperation.modifyRecordsCompletionBlock = ^(NSArray <CKRecord *> *savedRecords, NSArray <CKRecordID *> *deletedRecordIDs, NSError *operationError) {
+                    modifyRecordsOperationCompletionBlockWasCalled = YES;
                     dispatch_async(self.dispatchQueue, ^{
-                        DLog(@"QSCloudKitSynchronizer >> Deleted %ld records", (unsigned long)deletedRecordIDs.count);
+                        DLog(@"QSCloudKitSynchronizer >> Deleted %ld records, batchSize: %ld", (unsigned long)deletedRecordIDs.count, (long)self.batchSize);
                         
+                        BOOL batchSizeChanged = NO;
                         if (operationError.code == CKErrorLimitExceeded) {
-                            self.batchSize = self.batchSize / 2;
+                            [self updateBatchSizeFromError:operationError];
+                            batchSizeChanged = YES;
                         } else if (self.batchSize < QSDefaultBatchSize) {
-                            self.batchSize++;
+                            if (!self.batchSizeWasParsedFromError)
+                            {
+                                self.batchSize++;
+                                batchSizeChanged = YES;
+                            }
+                        }
+                        if (batchSizeChanged)
+                        {
+                            DLog(@"QSCloudKitSynchronizer >> new batchSize: %ld", (long)self.batchSize);
                         }
                         
                         [modelAdapter didDeleteRecordIDs:deletedRecordIDs];
@@ -583,7 +711,17 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
                     });
                 };
                 
+                modifyRecordsOperation.completionBlock = ^{
+                    if (!modifyRecordsOperationCompletionBlockWasCalled && completion != NULL)
+                    {
+                        //modifyRecordsOperationCompletionBlock was not called
+                        NSError *newError = [QSCloudKitSynchronizer completionBlockWasNotCalledError];
+                        callBlockIfNotNil(completion, newError);
+                    }
+                };
+                
                 self.currentOperation = modifyRecordsOperation;
+                DLog(@"QSCloudKitSynchronizer >> modifyRecordsOperation (deletion) will add to db: %@", self.database);
                 [self.database addOperation:modifyRecordsOperation];
             }
         }];
@@ -598,12 +736,15 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)synchronizationUpdateServerTokens
 {
+    DLog(@"QSCloudKitSynchronizer >> synchronizationUpdateServerTokens");
+    NSProgress *updateServerTokenProgress = [NSProgress progressWithTotalUnitCount:1];
+    [self.syncProgress addChild:updateServerTokenProgress withPendingUnitCount:[self syncProgressUnitCountForStep:QSSynchronizerSyncStepUpdateServerToken]];
     void (^completionBlock)(CKServerChangeToken * _Nullable, NSArray<CKRecordZoneID *> * _Nonnull, NSArray<CKRecordZoneID *> * _Nonnull) = ^(CKServerChangeToken * _Nullable databaseToken, NSArray<CKRecordZoneID *> * _Nonnull changedZoneIDs, NSArray<CKRecordZoneID *> * _Nonnull deletedZoneIDs) {
         
         [self notifyProviderForDeletedZoneIDs:deletedZoneIDs];
         if (changedZoneIDs.count) {
             [self updateServerTokenForRecordZones:changedZoneIDs withCompletion:^(BOOL needToFetchFullChanges) {
-                
+                updateServerTokenProgress.completedUnitCount = updateServerTokenProgress.totalUnitCount;
                 if (needToFetchFullChanges) {
                     //There were changes before we finished, repeat process again
                     [self performSynchronization];
@@ -626,12 +767,13 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)updateServerTokenForRecordZones:(NSArray<CKRecordZoneID *> *)zoneIDs withCompletion:(void(^)(BOOL needToFetchFullChanges))completion
 {
+    DLogInfo(@"QSCloudKitSynchronizer >> updateServerTokenForRecordZoneIDs: %@", zoneIDs);
     void(^completionBlock)(NSDictionary<CKRecordZoneID *,QSFetchZoneChangesOperationZoneResult *> * _Nonnull) = ^(NSDictionary<CKRecordZoneID *,QSFetchZoneChangesOperationZoneResult *> * _Nonnull zoneResults) {
         dispatch_async(self.dispatchQueue, ^{
             NSMutableArray *pendingZones = [NSMutableArray array];
             __block BOOL needsToRefetch = NO;
             [zoneResults enumerateKeysAndObjectsUsingBlock:^(CKRecordZoneID * _Nonnull zoneID, QSFetchZoneChangesOperationZoneResult * _Nonnull result, BOOL * _Nonnull stop) {
-               
+                DLogInfo(@"QSCloudKitSynchronizer >> updateServerTokenForRecordZoneID: %@", zoneID);
                 id<QSModelAdapter> modelAdapter = self.modelAdapterDictionary[zoneID];
                 if (result.downloadedRecords.count || result.deletedRecordIDs.count) {
                     needsToRefetch = YES;
@@ -666,6 +808,7 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)finishSynchronizationWithError:(NSError *)error
 {
+    self.syncProgress.completedUnitCount = self.syncProgress.totalUnitCount;
     self.syncing = NO;
     self.cancelSync = NO;
     
@@ -688,8 +831,9 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
             [[NSNotificationCenter defaultCenter] postNotificationName:QSCloudKitSynchronizerDidSynchronizeNotification object:self];
         }
         
-        callBlockIfNotNil(self.completion, error);
+        void(^aCompletion)(NSError *error) = self.completion;
         self.completion = nil;
+        callBlockIfNotNil(aCompletion, error);
     });
     
     DLog(@"QSCloudKitSynchronizer >> Finishing synchronization");
@@ -801,6 +945,22 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     return error.code == CKErrorServerRecordChanged;
 }
 
+- (BOOL)isUnknownItemError:(NSError *)error
+{
+    if (error.code == CKErrorPartialFailure)
+    {
+        NSDictionary *errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey];
+        for (NSError *anError in [errorsByItemID allValues])
+        {
+            if (anError.code == CKErrorUnknownItem)
+            {
+                return YES;
+            }
+        }
+    }
+    return error.code == CKErrorUnknownItem;
+}
+
 #pragma mark - RecordZone setup
 
 - (BOOL)needsZoneSetup:(id<QSModelAdapter>)modelAdapter
@@ -821,12 +981,15 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
 
 - (void)setupRecordZone:(CKRecordZoneID *)zoneID withCompletion:(void(^)(NSError *error))completionBlock
 {
+    DLog(@"will setupRecordZone");
     [self.database fetchRecordZoneWithID:zoneID completionHandler:^(CKRecordZone * _Nullable zone, NSError * _Nullable error) {
         
         if (zone) {
+            DLog(@"zone fetched");
             callBlockIfNotNil(completionBlock, error);
         } else if (error.code  == CKErrorZoneNotFound || error.code == CKErrorUserDeletedZone) {
-            
+
+            DLog(@"will create new zone");
             CKRecordZone *newZone = [[CKRecordZone alloc] initWithZoneID:zoneID];
             [self.database saveRecordZone:newZone completionHandler:^(CKRecordZone * _Nullable zone, NSError * _Nullable error) {
                 if (!error && zone) {
@@ -842,4 +1005,70 @@ NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompa
     }];
 }
 
+#pragma mark - private
+
+- (void)updateBatchSizeFromError:(NSError *)error
+{
+    NSString *errorMessage = error.localizedDescription;
+    NSInteger newBatchSize = self.batchSize / 2;
+    if ([errorMessage hasSuffix:@")"])
+    {
+        errorMessage = [errorMessage substringToIndex:errorMessage.length - 1];
+        NSRange lastBracketRange = [errorMessage rangeOfString:@"(" options:NSBackwardsSearch];
+        if (lastBracketRange.length > 0)
+        {
+            NSString *parsedBatchString = [errorMessage substringFromIndex:lastBracketRange.location + lastBracketRange.length];
+            newBatchSize = [parsedBatchString integerValue];
+            if (newBatchSize > 0 && newBatchSize < self.batchSize)
+            {
+                // batchsuze was parsed and it is less than the current batch size
+                self.batchSizeWasParsedFromError = YES;
+            }
+            DLog(@"parsedBatchString: %@, batchSize: %ld", parsedBatchString, (long)newBatchSize);
+        }
+    }
+    if (newBatchSize >= self.batchSize)
+    {
+        newBatchSize = self.batchSize / 2;
+    }
+    self.batchSize = newBatchSize;
+}
+
++ (void)configureCKOperation:(CKOperation *)operation
+{
+    operation.qualityOfService = NSQualityOfServiceUserInitiated; //to reduce timeoutInterval time
+}
+
+- (NSInteger)totalSyncProgressUnitCount
+{
+    __block NSInteger totalSyncProgressUnitCount = 0;
+    NSDictionary *syncProgressUnitCountByStep = [self syncProgressUnitCountByStep];
+    [syncProgressUnitCountByStep enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull unitCount, BOOL * _Nonnull stop) {
+        totalSyncProgressUnitCount += [unitCount integerValue];
+    }];
+    return totalSyncProgressUnitCount;
+}
+
+- (NSInteger)syncProgressUnitCountForStep:(QSSynchronizerSyncStep)syncStep
+{
+    return [[self syncProgressUnitCountByStep][@(syncStep)] integerValue];
+}
+
+- (NSDictionary *)syncProgressUnitCountByStep
+{
+    NSDictionary *syncProgressUnitCountByStep = @{
+                                                  @(QSSynchronizerSyncStepPrepareForImport) : @(1),
+                                                  @(QSSynchronizerSyncStepRestoreServerToken) : @(1),
+                                                  @(QSSynchronizerSyncStepFetchChanges) : @(1),
+                                                  @(QSSynchronizerSyncStepMergeChanges) : @(1),
+                                                  @(QSSynchronizerSyncStepUpdateServerToken) : @(1),
+                                                  @(QSSynchronizerSyncStepUploadChanges) : @(1)
+                                                  };
+    return syncProgressUnitCountByStep;
+}
+
++ (NSError *)completionBlockWasNotCalledError
+{
+    return [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:QSCloudKitSynchronizerErrorCompletionBlockNotCalled userInfo:@{ NSLocalizedDescriptionKey : @"QS Operation completion block not being called" }];
+}
 @end
