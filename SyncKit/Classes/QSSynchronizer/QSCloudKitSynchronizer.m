@@ -416,7 +416,7 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
                                                                                            zoneIDs:zoneIDs
                                                                                   zoneChangeTokens:[self.activeZoneTokens copy]
                                                                                       modelVersion:self.compatibilityVersion
-                                                                            ignoreDeviceIdentifier:self.deviceIdentifier
+                                                                            ignoreDeviceIdentifier:nil
                                                                                        desiredKeys:nil
                                                                                         completion:completionBlock];
     [self runOperation:operation];
