@@ -398,6 +398,18 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
                     self.activeZoneTokens[zoneID] = zoneResult.serverChangeToken;
                     [modelAdapter saveChangesInRecords:zoneResult.downloadedRecords];
                     [modelAdapter deleteRecordsWithIDs:zoneResult.deletedRecordIDs];
+                    __block BOOL anyCkShareWasDeleted = NO;
+                    [zoneResult.deletedRecordIDs enumerateObjectsUsingBlock:^(CKRecordID * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                        if ([self isCKShareRecordID:obj])
+                        {
+                            anyCkShareWasDeleted = YES;
+                            *stop = YES;
+                        }
+                    }];
+                    if (anyCkShareWasDeleted)
+                    {
+                        [self handleCKShareDeletionInZone:zoneID];
+                    }
                     if (zoneResult.moreComing) {
                         [pendingZones addObject:zoneID];
                     }
@@ -1067,8 +1079,332 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
     return syncProgressUnitCountByStep;
 }
 
+- (void)handleCKShare:(CKShare *)deletedShare deletionInZone:(CKRecordZoneID *)zoneID completion:(void (^ _Nullable)(NSError * _Nullable))completion
+{
+    if (self.database.databaseScope == CKDatabaseScopePrivate)
+    {
+        // private CKShare was deleted;
+        // stop sharing extra data share to users, that is not participating in any "normal" share.
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"QSCloudKitDeviceUUIDKey != 'sdfarg'"];// [NSPredicate predicateWithFormat:@"TRUEPREDICATE"] - does not work;
+        CKQuery *query = [[CKQuery alloc] initWithRecordType:CKRecordTypeShare predicate:predicate];
+        CKQueryOperation *operation = [[CKQueryOperation alloc] initWithQuery:query];
+        operation.desiredKeys = @[];
+        operation.zoneID = zoneID;
+        NSMutableArray <CKShare *>*existingShares = [NSMutableArray array];
+        __block BOOL queryCompletionBlockWasCalled = NO;
+        
+        operation.recordFetchedBlock = ^(CKRecord *record) {
+            if ([record isKindOfClass:[CKShare class]])
+            {
+                CKShare *aShare = (CKShare *)record;
+                [existingShares addObject:aShare];
+            }
+        };
+        
+        operation.queryCompletionBlock = ^(CKQueryCursor *cursor, NSError *error) {
+            queryCompletionBlockWasCalled = YES;
+        };
+        
+        operation.completionBlock = ^{
+            __block CKShare *extraDataShare = nil;
+            __block NSMutableSet *userRecordNamesThatAcceptedAnyShare = [NSMutableSet set];
+            DLogInfo(@"existingShares: %@", existingShares);
+            [existingShares enumerateObjectsUsingBlock:^(CKShare * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                if (![self isExtraSharedDataShare:obj])
+                {
+                    [obj.participants enumerateObjectsUsingBlock:^(CKShareParticipant * _Nonnull aParticipant, NSUInteger idxParticipant, BOOL * _Nonnull stopParticipant) {
+                        if (aParticipant.acceptanceStatus == CKShareParticipantAcceptanceStatusAccepted)
+                        {
+                            [userRecordNamesThatAcceptedAnyShare addObject:aParticipant.userIdentity.userRecordID.recordName];
+                        }
+                    }];
+                }
+                else
+                {
+                    extraDataShare = obj;
+                }
+            }];
+            
+            if (extraDataShare.participants.count > 0)
+            {
+                NSMutableSet *participantsToRemoveFromExtraSharedData = [NSMutableSet set];
+                NSMutableArray *updatedParticipants = [NSMutableArray array];
+                [extraDataShare.participants enumerateObjectsUsingBlock:^(CKShareParticipant * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                    if (![userRecordNamesThatAcceptedAnyShare containsObject:obj.userIdentity.userRecordID.recordName])
+                    {
+                        [participantsToRemoveFromExtraSharedData addObject:obj];
+                    }
+                    else
+                    {
+                        [updatedParticipants addObject:obj];
+                    }
+                }];
+                DLogInfo(@"participants to remove from extra shared data: %ld", (long)participantsToRemoveFromExtraSharedData.count);
+                if (participantsToRemoveFromExtraSharedData.count > 0)
+                {
+                    __block BOOL shouldStopSharingExtraData = NO;
+                    [participantsToRemoveFromExtraSharedData enumerateObjectsUsingBlock:^(CKShareParticipant * _Nonnull obj, BOOL * _Nonnull stop) {
+                        if ([obj isEqual:extraDataShare.owner])
+                        {
+                            // current user does not have any accounts shared (currently we does not stop sharing, because otherwise it will take longer for user to share account)
+//                            shouldStopSharingExtraData = YES;
+                        }
+                        else
+                        {
+                            [extraDataShare removeParticipant:obj];
+                        }
+                    }];
+                    
+                    if (shouldStopSharingExtraData)
+                    {
+                        DLogInfo(@"shouldStopSharingExtraData");  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
+                    }
+                    else
+                    {
+                        DLogInfo(@"(not) shouldStopSharingExtraData");
+                        [self saveChangesForShare:extraDataShare withCompletion:^(CKShare * _Nullable savedRecord, NSError * _Nonnull saveChangesForShareError) {
+                            DLogInfo(@"did update shared data share: %@", savedRecord);
+                            if (saveChangesForShareError)
+                            {
+                                DLogInfo(@"saveChangesForShareError: %@", saveChangesForShareError);
+                            }
+                            __block BOOL hasShareLocally = NO;
+                            [self.modelAdapters enumerateObjectsUsingBlock:^(id <QSModelAdapter> obj, NSUInteger idx, BOOL *stop){
+                                if ([obj hasRecordID:deletedShare.recordID])
+                                {
+                                    hasShareLocally = YES;
+                                    *stop = YES;
+                                }
+                            }];
+                            if (hasShareLocally)
+                            {
+                                dispatch_async(dispatch_get_main_queue(), ^{
+                                    // fix (workaround) share not disappearing locally when removed. If syncing  data after some delay - it disappears.
+                                    [self performSelector:@selector(synchronizeWithCompletion:) withObject:completion afterDelay:2.0];
+                                });
+                            }
+                            else
+                            {
+                                if (completion != NULL)
+                                {
+                                    completion(saveChangesForShareError);
+                                }
+                            }
+                        }];
+                        return;
+                    }
+                }
+                __block BOOL hasShareLocally = NO;
+                [self.modelAdapters enumerateObjectsUsingBlock:^(id <QSModelAdapter> obj, NSUInteger idx, BOOL *stop){
+                    if ([obj hasRecordID:deletedShare.recordID])
+                    {
+                        hasShareLocally = YES;
+                        *stop = YES;
+                    }
+                }];
+                if (hasShareLocally)
+                {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        // fix (workaround) share not disappearing locally when removed. If syncing  data after some delay - it disappears.
+                        [self performSelector:@selector(synchronizeWithCompletion:) withObject:completion afterDelay:2.0];
+                    });
+                }
+                else
+                {
+                    if (completion != NULL)
+                    {
+                        completion(nil);
+                    }
+                }
+            }
+            else
+            {
+                if (completion != NULL)
+                {
+                    completion(nil);
+                }
+            }
+        };
+        [self.database addOperation:operation];
+    }
+    else if (self.database.databaseScope == CKDatabaseScopeShared)
+    {
+        // other owner's CKShare was deleted
+        DLogInfo(@"handle CKShare deletion in shared db");
+        // delete shared data parent object's share? (if no other account from that user is being accepted)
+        
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"QSCloudKitDeviceUUIDKey != 'sdfarg'"];// [NSPredicate predicateWithFormat:@"TRUEPREDICATE"] - does not work;
+        CKQuery *query = [[CKQuery alloc] initWithRecordType:CKRecordTypeShare predicate:predicate];
+        CKQueryOperation *queryOperation = [[CKQueryOperation alloc] initWithQuery:query];
+        queryOperation.desiredKeys = @[];
+        queryOperation.zoneID = zoneID;
+        NSMutableArray <CKShare *>*existingShares = [NSMutableArray array];
+        __block BOOL queryCompletionBlockWasCalled = NO;
+        
+        queryOperation.recordFetchedBlock = ^(CKRecord *record) {
+            if ([record isKindOfClass:[CKShare class]])
+            {
+                CKShare *aShare = (CKShare *)record;
+                [existingShares addObject:aShare];
+            }
+        };
+        
+        queryOperation.queryCompletionBlock = ^(CKQueryCursor *cursor, NSError *error) {
+            queryCompletionBlockWasCalled = YES;
+        };
+        
+        queryOperation.completionBlock = ^{
+            __block CKShare *extraDataShare = nil;
+            __block BOOL hasAcceptedAnyAccountFromRemovedShareOwner = NO;
+            [existingShares enumerateObjectsUsingBlock:^(CKShare * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                
+                if (![self isExtraSharedDataShare:obj])
+                {
+                    [obj.participants enumerateObjectsUsingBlock:^(CKShareParticipant * _Nonnull aParticipant, NSUInteger idxParticipant, BOOL * _Nonnull stopParticipant) {
+                        if (obj.currentUserParticipant == aParticipant)
+                        {
+                            *stopParticipant = YES;
+                            hasAcceptedAnyAccountFromRemovedShareOwner = YES;
+                        }
+                    }];
+                }
+                else
+                {
+                    extraDataShare = obj;
+                }
+                
+            }];
+            
+            if (extraDataShare && !hasAcceptedAnyAccountFromRemovedShareOwner)
+            {
+                DLogInfo(@"extraDataShare && !hasAcceptedAnyAccount");
+                CKModifyRecordsOperation *deleteShareOperation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:@[] recordIDsToDelete:@[extraDataShare.recordID]];
+                deleteShareOperation.queuePriority = NSOperationQueuePriorityHigh;
+                deleteShareOperation.qualityOfService = NSQualityOfServiceUserInitiated;
+                deleteShareOperation.modifyRecordsCompletionBlock = ^void(NSArray<CKRecord *> * _Nullable savedRecords, NSArray<CKRecordID *> * _Nullable deletedRecordIDs, NSError * _Nullable deleteShareOperationError) {
+                    if (deleteShareOperationError)
+                    {
+                        DLogInfo(@"deleteShareOperationError: %@", deleteShareOperationError);
+                    }
+                    if ([deletedRecordIDs containsObject:extraDataShare.recordID])
+                    {
+                        DLogInfo(@"extra data share removed successfully remotelly");
+                        // maybe synchronizeSharedData is not needed here (because if extra data share for some owner was deleted, then likely all shares from it were deleted in the shared db and therefore zone was deleted. So, data update likely was done during delete zone notification), but just in case.
+                    }
+                    [self synchronizeWithCompletion:^(NSError *syncSharedDataError) {
+                        if (syncSharedDataError)
+                        {
+                            DLogInfo(@"syncSharedDataError: %@", syncSharedDataError);
+                        }
+                        __block BOOL hasShareLocally = NO;
+                        [self.modelAdapters enumerateObjectsUsingBlock:^(id <QSModelAdapter> obj, NSUInteger idx, BOOL *stop){
+                            if ([obj hasRecordID:deletedShare.recordID])
+                            {
+                                hasShareLocally = YES;
+                                *stop = YES;
+                            }
+                        }];
+                        if (hasShareLocally)
+                        {
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                // fix (workaround) share not disappearing locally when removed. If syncing shared data after some delay - it disappears.
+                                [self performSelector:@selector(synchronizeWithCompletion:) withObject:NULL afterDelay:3.0];
+                            });
+                        }
+                        if (completion != NULL)
+                        {
+                            completion(syncSharedDataError);
+                        }
+                    }];
+                };
+                [self.database addOperation:deleteShareOperation];
+            }
+            else
+            {
+                [self synchronizeWithCompletion:^(NSError *syncSharedDataError) {
+                    DLogInfo(@"syncSharedDataError: %@",syncSharedDataError);
+                    __block BOOL hasShareLocally = NO;
+                    [self.modelAdapters enumerateObjectsUsingBlock:^(id <QSModelAdapter> obj, NSUInteger idx, BOOL *stop){
+                        if ([obj hasRecordID:deletedShare.recordID])
+                        {
+                            hasShareLocally = YES;
+                            *stop = YES;
+                        }
+                    }];
+                    if (hasShareLocally)
+                    {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            // fix (workaround) share not disappearing locally when removed. If syncing shared data after some delay - it disappears.
+                            [self performSelector:@selector(synchronizeWithCompletion:) withObject:NULL afterDelay:3.0];
+                        });
+                    }
+                    if (completion != NULL)
+                    {
+                        completion(syncSharedDataError);
+                    }
+                }];
+            }
+        };
+        [self.database addOperation:queryOperation];
+    }
+}
+
+- (void)handleCKShareDeletionInZone:(CKRecordZoneID *)zoneID
+{
+    [self handleCKShare:nil deletionInZone:(CKRecordZoneID *)zoneID completion:NULL];
+}
+
+- (BOOL)isExtraSharedDataShare:(CKShare *)share
+{
+    BOOL isExtraSharedDataShare = NO;
+    if (share.publicPermission == CKShareParticipantPermissionReadWrite)
+    {
+        // extra shared data share has readwrite permission, while account, budget? - private
+        isExtraSharedDataShare = YES;
+    }
+    return isExtraSharedDataShare;
+}
+
+- (BOOL)isCKShareRecordID:(CKRecordID *)recordID
+{
+    return [recordID.recordName hasPrefix:@"Share-"];
+}
+
 + (NSError *)completionBlockWasNotCalledError
 {
     return [NSError errorWithDomain:QSCloudKitSynchronizerErrorDomain code:QSCloudKitSynchronizerErrorCompletionBlockNotCalled userInfo:@{ NSLocalizedDescriptionKey : @"QS Operation completion block not being called" }];
 }
+
+- (void)saveChangesForShare:(CKShare *)share withCompletion:(void(^)(CKShare * _Nullable savedRecord, NSError *error))completion
+{
+    CKRecord *recordCopy = share.copy;
+    CKModifyRecordsOperation *operation = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:@[recordCopy] recordIDsToDelete:nil];
+    operation.queuePriority = NSOperationQueuePriorityHigh;
+    operation.qualityOfService = NSQualityOfServiceUserInitiated;
+    operation.modifyRecordsCompletionBlock = ^void(NSArray<CKRecord *> * _Nullable savedRecords, NSArray<CKRecordID *> * _Nullable deletedRecordIDs, NSError * _Nullable operationError) {
+        
+        __block CKShare *savedShare = nil;
+        [savedRecords enumerateObjectsUsingBlock:^(CKRecord * _Nonnull obj, NSUInteger idxEnumerateSavedRecords, BOOL * _Nonnull stopEnumerateSavedRecords) {
+            if ([obj isKindOfClass:[CKShare class]])
+            {
+                savedShare = (CKShare *)obj;
+                *stopEnumerateSavedRecords = YES;
+            }
+        }];
+        
+        DLogInfo(@"Saved share %@, with error %@", savedShare, operationError);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            
+            if (completion != NULL)
+            {
+                completion(savedShare, operationError);
+            }
+            
+        });
+        
+    };
+    
+    [self.database addOperation:operation];
+}
+
 @end
