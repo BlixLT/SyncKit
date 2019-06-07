@@ -182,7 +182,7 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
  */
 - (void)eraseRemoteAndLocalDataForModelAdapter:(nonnull id<QSModelAdapter>)modelAdapter withCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
-- (void)handleCKShare:(CKShare *)deletedShare deletionInZone:(CKRecordZoneID *)zoneID completion:(void(^_Nullable)(NSError * _Nullable error))completion;
+- (void)handleCKShare:(nullable CKShare *)deletedShare deletionInZone:(nullable CKRecordZoneID *)zoneID completion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
 @end
 
