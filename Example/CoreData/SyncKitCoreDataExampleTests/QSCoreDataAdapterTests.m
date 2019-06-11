@@ -31,13 +31,13 @@
     [super setUp];
 
     self.targetCoreDataStack = [self coreDataStackWithModelName:@"QSExample"];
-    self.coreDataStack = [[QSCoreDataStack alloc] initWithStoreType:NSInMemoryStoreType model:[QSCoreDataAdapter persistenceModel] storePath:nil concurrencyType:NSPrivateQueueConcurrencyType dispatchImmediately:YES];
+    self.coreDataStack = [[QSCoreDataStack alloc] initWithStoreType:NSInMemoryStoreType model:[QSCoreDataAdapter persistenceModel] storePath:nil concurrencyType:NSMainQueueConcurrencyType dispatchImmediately:YES];
 }
 
 - (QSCoreDataStack *)coreDataStackWithModelName:(NSString *)modelName
 {
     NSURL *modelURL = [[NSBundle bundleForClass:[self class]] URLForResource:modelName withExtension:@"momd"];
-    QSCoreDataStack *stack = [[QSCoreDataStack alloc] initWithStoreType:NSInMemoryStoreType model:[[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL] storePath:nil concurrencyType:NSPrivateQueueConcurrencyType dispatchImmediately:YES];
+    QSCoreDataStack *stack = [[QSCoreDataStack alloc] initWithStoreType:NSInMemoryStoreType model:[[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL] storePath:nil concurrencyType:NSMainQueueConcurrencyType dispatchImmediately:YES];
     return stack;
 }
 
@@ -1378,6 +1378,35 @@
         XCTAssertTrue([record.recordID.recordName containsString:@"com1"] ||
                       [record.recordID.recordName containsString:@"emp1"] ||
                       [record.recordID.recordName containsString:@"emp2"]);
+    }
+}
+
+- (void)testRecordsToUpload_includesAnyParentRecordsInBatch
+{
+    QSCompany *company = [self insertCompanyWithName:@"new name"
+                                          identifier:@"id1"
+                                           inContext:self.targetCoreDataStack.managedObjectContext];
+    [self insertEmployeeWithName:@"employee1"
+                      identifier:@"em1"
+                         company:company
+                       inContext:self.targetCoreDataStack.managedObjectContext];
+    
+    QSCoreDataAdapter *coreDataAdapter = [[QSCoreDataAdapter alloc] initWithPersistenceStack:self.coreDataStack targetContext:self.targetCoreDataStack.managedObjectContext recordZoneID:[[CKRecordZoneID alloc] initWithZoneName:@"zone" ownerName:@"owner"] delegate:self];
+    
+    [coreDataAdapter prepareForImport];
+    NSArray *records = [coreDataAdapter recordsToUploadWithLimit:1];
+    [coreDataAdapter didFinishImportWithError:nil];
+    
+    XCTAssertEqual(records.count, 2);
+    BOOL includesCompany = NO;
+    BOOL includesEmployee = NO;
+    for (CKRecord *record in records) {
+        if ([record.recordID.recordName containsString:@"id1"]) {
+            includesCompany = YES;
+        }
+        if ([record.recordID.recordName containsString:@"em1"]) {
+            includesEmployee = YES;
+        }
     }
 }
 

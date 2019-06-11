@@ -83,9 +83,10 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
  */
 @property (atomic, readonly, getter=isSyncing) BOOL syncing;
 /**
- *  Maximum number of items that will be included in an upload to CloudKit. (read-only)
+ *  Number of items that will be included in an upload to CloudKit.
+ *  Could be changed by the synchronizer to adjust to CloudKit limits.
  */
-@property (nonatomic, readonly) NSInteger batchSize;
+@property (nonatomic, assign) NSInteger batchSize;
 
 /**
  *  If the version is set (!= 0) and the synchronizer downloads records with a higher version then
@@ -173,14 +174,14 @@ typedef NS_ENUM(NSInteger, QSCloudKitSynchronizeMode)
 - (void)cancelSynchronization;
 
 /**
- *  Erase all local change tracking to stop synchronizing.
+ *  Erase all local metadata to stop synchronizing.
  */
-- (void)eraseLocal;
+- (void)eraseLocalMetadata;
 
 /**
- *  Erase all data currently in CloudKit for this change manager. This will delete the `CKRecordZone` that was used by the change manager.
+ *  This will delete the `CKRecordZone` that is used by the model adapter, erasing all content in that record zone.
  */
-- (void)eraseRemoteAndLocalDataForModelAdapter:(nonnull id<QSModelAdapter>)modelAdapter withCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
+- (void)deleteRecordZoneForModelAdapter:(nonnull id<QSModelAdapter>)modelAdapter withCompletion:(void(^_Nullable)(NSError * _Nullable error))completion;
 
 - (void)handleCKShare:(nullable CKShare *)deletedShare deletionInZone:(nullable CKRecordZoneID *)zoneID completion:(void(^_Nullable)(NSError * _Nullable error))completion;
 

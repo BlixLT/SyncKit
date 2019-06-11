@@ -23,7 +23,7 @@ NSString * const QSCloudKitSynchronizerDidSynchronizeNotification = @"QSCloudKit
 NSString * const QSCloudKitSynchronizerDidFailToSynchronizeNotification = @"QSCloudKitSynchronizerDidFailToSynchronizeNotification";
 NSString * const QSCloudKitSynchronizerErrorKey = @"QSCloudKitSynchronizerErrorKey";
 
-static const NSInteger QSDefaultBatchSize = 2000;
+static const NSInteger QSDefaultBatchSize = 200;
 NSString * const QSCloudKitDeviceUUIDKey = @"QSCloudKitDeviceUUIDKey";
 NSString * const QSCloudKitModelCompatibilityVersionKey = @"QSCloudKitModelCompatibilityVersionKey";
 
@@ -49,7 +49,6 @@ typedef NS_ENUM(NSInteger, QSSynchronizerSyncStep)
 @property (nonatomic, strong) CKDatabase *database;
 @property (atomic, readwrite, assign, getter=isSyncing) BOOL syncing;
 
-@property (nonatomic, assign) NSInteger batchSize;
 @property (nonatomic, assign) BOOL batchSizeWasParsedFromError;
 
 @property (nonatomic, strong, readwrite) NSDictionary *modelAdapterDictionary;
@@ -65,6 +64,7 @@ typedef NS_ENUM(NSInteger, QSSynchronizerSyncStep)
 
 @property (nonatomic, readwrite, strong) id<QSKeyValueStore> keyValueStore;
 @property (nonatomic, readwrite, strong) id<QSCloudKitSynchronizerAdapterProvider> adapterProvider;
+@property (nonatomic, assign) NSInteger maxBatchSize;
 
 @property (nonatomic, strong) NSProgress *syncProgress;
 @property (nonatomic, strong) NSProgress *uploadChangesProgress;
@@ -93,7 +93,8 @@ typedef NS_ENUM(NSInteger, QSSynchronizerSyncStep)
         self.containerIdentifier = containerIdentifier;
         self.modelAdapterDictionary = @{};
         
-        self.batchSize = QSDefaultBatchSize;
+        self.maxBatchSize = QSDefaultBatchSize;
+        self.batchSize = self.maxBatchSize;
         self.compatibilityVersion = 0;
         self.syncMode = QSCloudKitSynchronizeModeSync;
         self.database = database;
@@ -207,24 +208,23 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
     }
 }
 
-- (void)eraseLocal
+- (void)eraseLocalMetadata
 {
     [self storeDatabaseToken:nil];
     [self clearAllStoredSubscriptionIDs];
     [self storeDeviceUUID:nil];
     
-    for (id<QSModelAdapter> modelAdapter in self.modelAdapters) {
+    for (id<QSModelAdapter> modelAdapter in [self.modelAdapters copy]) {
         [modelAdapter deleteChangeTracking];
+        [self removeModelAdapter:modelAdapter];
     }
 }
 
-- (void)eraseRemoteAndLocalDataForModelAdapter:(id<QSModelAdapter>)modelAdapter withCompletion:(void(^)(NSError *error))completion
+- (void)deleteRecordZoneForModelAdapter:(id<QSModelAdapter>)modelAdapter withCompletion:(void(^)(NSError *error))completion
 {
     [self.database deleteRecordZoneWithID:modelAdapter.recordZoneID completionHandler:^(CKRecordZoneID * _Nullable zoneID, NSError * _Nullable error) {
         if (!error) {
             DLog(@"QSCloudKitSynchronizer >> Deleted zone: %@", zoneID);
-            [modelAdapter deleteChangeTracking];
-            [self removeModelAdapter:modelAdapter];
         } else {
             DLog(@"QSCloudKitSynchronizer >> Error: %@", error);
         }
@@ -313,24 +313,21 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
         dispatch_async(self.dispatchQueue, ^{
             [self notifyProviderForDeletedZoneIDs:deletedZoneIDs];
             
-            if (changedZoneIDs.count) {
-                [self loadTokensForZoneIDs:changedZoneIDs];
-                NSArray *toFetchZoneIDs = [self filteredZoneIDs:changedZoneIDs managedByManagerIn:self.modelAdapters];
-                if (toFetchZoneIDs.count)
-                {
-                    [self fetchZoneChanges:toFetchZoneIDs withCompletion:^() {
-                        
+            NSArray *zoneIDsToFetch = [self loadAdaptersAndTokensForZoneIDs:changedZoneIDs];
+            if (zoneIDsToFetch.count) {
+                
+                [self fetchZoneChanges:zoneIDsToFetch withCompletion:^(NSError *error) {
+                    if (error) {
+                        [self finishSynchronizationWithError:error];
+                    } else {
                         [self synchronizationMergeChangesWithCompletion:^(NSError *error) {
                             [self resetActiveTokens];
                             callBlockIfNotNil(completion, databaseToken, error);
                         }];
-                    }];
-                }
-                else
-                {
-                    callBlockIfNotNil(completion, databaseToken, nil);
-                }
+                    }
+                }];
             } else {
+                [self resetActiveTokens];
                 callBlockIfNotNil(completion, databaseToken, nil);
             }
             
@@ -341,9 +338,11 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
     [self runOperation:operation];
 }
 
-- (void)loadTokensForZoneIDs:(NSArray *)zoneIDs
+- (NSArray<CKRecordZoneID *> *)loadAdaptersAndTokensForZoneIDs:(NSArray<CKRecordZoneID *> *)zoneIDs
 {
+    NSMutableArray *filteredZoneIDs = [NSMutableArray array];
     self.activeZoneTokens = [NSMutableDictionary dictionary];
+    
     for (CKRecordZoneID *zoneID in zoneIDs) {
         id<QSModelAdapter> modelAdapter = self.modelAdapterDictionary[zoneID];
         if (!modelAdapter) {
@@ -357,22 +356,11 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
             }
         }
         if (modelAdapter) {
+            [filteredZoneIDs addObject:zoneID];
             self.activeZoneTokens[zoneID] = [modelAdapter serverChangeToken];
         }
     }
-}
-
-- (NSArray *)filteredZoneIDs:(NSArray *)zoneIDs managedByManagerIn:(NSArray *)managers
-{
-    NSMutableArray *filteredZoneIDs = [NSMutableArray array];
-    for (CKRecordZoneID *zoneID in zoneIDs) {
-        for (id<QSModelAdapter> modelAdapter in managers) {
-            if ([modelAdapter.recordZoneID isEqual:zoneID]) {
-                [filteredZoneIDs addObject:zoneID];
-                continue;
-            }
-        }
-    }
+    
     return [filteredZoneIDs copy];
 }
 
@@ -381,17 +369,19 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
     self.activeZoneTokens = [NSMutableDictionary dictionary];
 }
 
-- (void)fetchZoneChanges:(NSArray *)zoneIDs withCompletion:(void(^)(void))completion
+- (void)fetchZoneChanges:(NSArray *)zoneIDs withCompletion:(void(^)(NSError *error))completion
 {
     void (^completionBlock)(NSDictionary<CKRecordZoneID *,QSFetchZoneChangesOperationZoneResult *> * _Nonnull zoneResults) = ^(NSDictionary<CKRecordZoneID *,QSFetchZoneChangesOperationZoneResult *> * _Nonnull zoneResults) {
        
         dispatch_async(self.dispatchQueue, ^{
             NSMutableArray *pendingZones = [NSMutableArray array];
+            __block NSError *error = nil;
             [zoneResults enumerateKeysAndObjectsUsingBlock:^(CKRecordZoneID * _Nonnull zoneID, QSFetchZoneChangesOperationZoneResult * _Nonnull zoneResult, BOOL * _Nonnull stop) {
                 
                 id<QSModelAdapter> modelAdapter = self.modelAdapterDictionary[zoneID];
-                if (zoneResult.error.code == CKErrorChangeTokenExpired) {
-                    [modelAdapter saveToken:nil];
+                if (zoneResult.error) {
+                    error = zoneResult.error;
+                    *stop = YES;
                 } else {
                     DLog(@"QSCloudKitSynchronizer >> Downloaded %ld changed records >> from zone %@", (unsigned long)zoneResult.downloadedRecords.count, zoneID);
                     DLog(@"QSCloudKitSynchronizer >> Downloaded %ld deleted record IDs >> from zone %@", (unsigned long)zoneResult.deletedRecordIDs.count, zoneID);
@@ -416,10 +406,10 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
                 }
             }];
             
-            if (pendingZones.count) {
+            if (pendingZones.count && !error) {
                 [self fetchZoneChanges:pendingZones withCompletion:completion];
             } else {
-                callBlockIfNotNil(completion);
+                callBlockIfNotNil(completion, error);
             }
         });
     };
@@ -622,8 +612,8 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
                 }
                 if (!operationError) {
                     
-                    if (self.batchSize < QSDefaultBatchSize) {
-                        self.batchSize = self.batchSize + 1;
+                    if (self.batchSize < self.maxBatchSize) {
+                        self.batchSize += 5;
                     }
                     
                     [modelAdapter didUploadRecords:savedRecords];
@@ -705,10 +695,10 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
                         if (operationError.code == CKErrorLimitExceeded) {
                             [self updateBatchSizeFromError:operationError];
                             batchSizeChanged = YES;
-                        } else if (self.batchSize < QSDefaultBatchSize) {
+                        } else if (self.batchSize < self.maxBatchSize) {
                             if (!self.batchSizeWasParsedFromError)
                             {
-                                self.batchSize++;
+                                self.batchSize += 5;
                                 batchSizeChanged = YES;
                             }
                         }
