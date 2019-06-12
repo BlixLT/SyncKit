@@ -48,7 +48,7 @@ import CloudKit
         let delegate = QSDefaultCoreDataAdapterDelegate.sharedInstance()
         let stack = QSCoreDataStack(storeType: NSSQLiteStoreType, model: QSCoreDataAdapter.persistenceModel(), storePath: QSDefaultCoreDataAdapterProvider.storePath(appGroup: appGroup))
         
-        return QSCoreDataAdapter(persistenceStack: stack, targetContext: managedObjectContext, recordZoneID: zoneID, delegate: delegate)
+        return QSCoreDataAdapter(persistenceStack: stack, targetContext: managedObjectContext, recordZoneID: zoneID, delegate: delegate)!
     }
     
     // MARK: - File directory

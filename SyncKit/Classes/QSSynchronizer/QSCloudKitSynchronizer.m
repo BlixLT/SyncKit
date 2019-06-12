@@ -775,7 +775,6 @@ static void * MNCurrentOperationObservenceContext = &MNCurrentOperationObservenc
             NSMutableArray *pendingZones = [NSMutableArray array];
             __block BOOL needsToRefetch = NO;
             [zoneResults enumerateKeysAndObjectsUsingBlock:^(CKRecordZoneID * _Nonnull zoneID, QSFetchZoneChangesOperationZoneResult * _Nonnull result, BOOL * _Nonnull stop) {
-                DLogInfo(@"QSCloudKitSynchronizer >> updateServerTokenForRecordZoneID: %@", zoneID);
                 id<QSModelAdapter> modelAdapter = self.modelAdapterDictionary[zoneID];
                 if (result.downloadedRecords.count || result.deletedRecordIDs.count) {
                     needsToRefetch = YES;
