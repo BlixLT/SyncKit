@@ -13,7 +13,7 @@ import CloudKit
 /**
  *  An object implementing `QSCoreDataAdapterDelegate` is responsible for saving the target managed object context at the request of the `QSCoreDataAdapter` in order to persist any downloaded changes.
  */
-@objc public protocol CoreDataAdapterDelegate {
+@objc public protocol CoreDataAdapterDelegate { 
     /**
      *  Asks the delegate to save the target managed object context before attempting to merge downloaded changes.
      *
