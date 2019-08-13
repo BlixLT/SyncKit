@@ -26,7 +26,7 @@ import CloudKit
 @objc public class DefaultCloudKitDatabaseAdapter: NSObject, CloudKitDatabaseAdapter {
     
     public let database: CKDatabase
-    public init(database: CKDatabase) {
+    @objc public init(database: CKDatabase) {
         self.database = database
     }
     

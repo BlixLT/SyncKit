@@ -68,7 +68,7 @@ public class CloudKitSynchronizer: NSObject {
         case downloadOnly
     }
     
-    public static let errorDomain = "CloudKitSynchronizerErrorDomain"
+    @objc public static let errorDomain = "CloudKitSynchronizerErrorDomain"
     public static let errorKey = "CloudKitSynchronizerErrorKey"
     
     @objc public let identifier: String
@@ -148,7 +148,6 @@ public class CloudKitSynchronizer: NSObject {
         if syncing {
             completion?(SyncError.alreadySyncing)
         }
-        
         debugPrint("CloudKitSynchronizer >> Initiating synchronization")
         cancelSync = false
         syncing = true

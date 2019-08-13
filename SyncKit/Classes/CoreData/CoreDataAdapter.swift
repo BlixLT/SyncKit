@@ -20,7 +20,7 @@ import CloudKit
      *  @param coreDataAdapter The `QSCoreDataAdapter` requesting the delegate to save.
      *  @param completion    Block to be called once the managed object context has been saved.
      */
-    func coreDataAdapter(_ adapter: CoreDataAdapter, requestsContextSaveWithCompletion completion: (Error?)->())
+    func coreDataAdapter(_ adapter: CoreDataAdapter, requestsContextSaveWithCompletion completion: @escaping (Error?)->())
     /**
      *  Tells the delegate to merge downloaded changes into the managed object context. First, the `importContext` must be saved by using `performBlock`. Then, the target managed object context must be saved to persist those changes and the completion block must be called to finalize the synchronization process.
      *
@@ -28,7 +28,7 @@ import CloudKit
      *  @param importContext `NSManagedObjectContext` containing all downloaded changes. This context has the target context as its parent context.
      *  @param completion    Block to be called once contexts have been saved.
      */
-    func coreDataAdapter(_ adapter: CoreDataAdapter, didImportChanges importContext: NSManagedObjectContext, completion: (Error?)->())
+    func coreDataAdapter(_ adapter: CoreDataAdapter, didImportChanges importContext: NSManagedObjectContext, completion: @escaping (Error?)->())
 }
 
 @objc public protocol CoreDataAdapterConflictResolutionDelegate {
@@ -64,7 +64,7 @@ import CloudKit
     @objc public let stack: CoreDataStack
     @objc public var mergePolicy: MergePolicy = .server
     @objc public var forceDataTypeInsteadOfAsset = false
-    
+
     @objc public init(persistenceStack: CoreDataStack, targetContext: NSManagedObjectContext, recordZoneID: CKRecordZone.ID, delegate: CoreDataAdapterDelegate) {
         self.stack = persistenceStack
         self.targetContext = targetContext
@@ -81,6 +81,11 @@ import CloudKit
                                                selector: #selector(targetContextDidSave(notification:)),
                                                name: .NSManagedObjectContextDidSave,
                                                object: targetContext)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(targetContextObjectsDidChange(notification:)),
+                                               name: .NSManagedObjectContextObjectsDidChange,
+                                               object: targetContext)
+
         setupPrimaryKeysLookup()
         setupChildrenRelationshipsLookup()
         performInitialSetupIfNeeded()
@@ -99,10 +104,10 @@ import CloudKit
         let entityType: String
         let changedKeys: [String]
         let state: SyncedEntityState
-        var targetRelationshipsDictionary: [String: RelationshipTarget]?
+        var targetRelationshipsDictionary: [String: Any]?
         var toSaveRelationshipNames: [String]?
         
-        init(identifier: String, record: CKRecord?, entityType: String, changedKeys: [String], state: SyncedEntityState, targetRelationshipsDictionary: [String: RelationshipTarget]? = nil, toSaveRelationshipNames: [String]? = nil) {
+        init(identifier: String, record: CKRecord?, entityType: String, changedKeys: [String], state: SyncedEntityState, targetRelationshipsDictionary: [String: Any]? = nil, toSaveRelationshipNames: [String]? = nil) {
             self.identifier = identifier
             self.record = record
             self.entityType = entityType
@@ -132,6 +137,15 @@ import CloudKit
 
 // MARK: - Setup
 extension CoreDataAdapter {
+    
+    func isShared() -> Bool {
+        if self.recordZoneID.ownerName == CKCurrentUserDefaultName
+        {
+            return false
+        }
+        return true
+    }
+    
     private func setupPrimaryKeysLookup() {
         
         targetContext.performAndWait {
@@ -191,6 +205,19 @@ extension CoreDataAdapter {
     }
     
     private func performInitialSetup() {
+        if self.isShared()
+        {
+            debugPrint("performInitialSetup.isShared")
+            // shared data adapters do not need initial setup. They download all (initial) data from cloudKit
+            if self.hasChanges {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .ModelAdapterHasChangesNotification,
+                                                    object: self)
+                }
+            }
+            return;
+        }
+        debugPrint("performInitialSetup. !isShared")
         targetContext.perform {
             guard let entities = self.targetContext.persistentStoreCoordinator?.managedObjectModel.entities else { return }
             for entityDescription in entities {
@@ -230,6 +257,26 @@ extension CoreDataAdapter {
                                                                      resultType: .countResultType),
             let count = fetchedObjects.first as? Int {
             hasChanges = count > 0
+        }
+    }
+    
+    // MARK: sharing
+    @objc public func sharedObjects(_ objects:[NSObject], completion: ((NSSet?) -> ())?)
+    {
+        self.privateContext.perform {
+            
+            var set = NSSet()
+            let mutableSet = set.mutableCopy() as! NSMutableSet
+            for object in objects
+            {
+                let share = self.share(for:object)
+                if share != nil
+                {
+                    mutableSet.add(object)
+                }
+            }
+            set = mutableSet
+            completion!(set);
         }
     }
 }

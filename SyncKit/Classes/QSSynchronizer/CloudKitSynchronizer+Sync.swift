@@ -73,7 +73,6 @@ extension CloudKitSynchronizer {
     }
     
     func loadTokens(for zoneIDs: [CKRecordZone.ID], loadAdapters: Bool) -> [CKRecordZone.ID] {
-        
         var filteredZoneIDs = [CKRecordZone.ID]()
         activeZoneTokens = [CKRecordZone.ID: CKServerChangeToken]()
         
@@ -103,7 +102,7 @@ extension CloudKitSynchronizer {
     func isServerRecordChangedError(_ error: NSError) -> Bool {
         
         if error.code == CKError.partialFailure.rawValue,
-            let errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey] as? [String: NSError],
+            let errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey] as? [NSString: NSError],
             errorsByItemID.values.contains(where: { (error) -> Bool in
                 return error.code == CKError.serverRecordChanged.rawValue
             }) {
@@ -170,7 +169,7 @@ extension CloudKitSynchronizer {
             finishSynchronization(error: SyncError.cancelled)
             return
         }
-        
+
         postNotification(.SynchronizerWillFetchChanges)
         fetchDatabaseChanges() { token, error in
             guard error == nil else {
@@ -293,7 +292,7 @@ extension CloudKitSynchronizer {
             finishSynchronization(error: SyncError.cancelled)
             return
         }
-        
+
         postNotification(.SynchronizerWillUploadChanges)
         
         uploadChanges() { (error) in
@@ -310,7 +309,6 @@ extension CloudKitSynchronizer {
     }
     
     func uploadChanges(completion: @escaping (Error?)->()) {
-        
         sequential(objects: modelAdapters, closure: setupZoneAndUploadRecords) { (error) in
             guard error == nil else { completion(error); return }
             
@@ -402,7 +400,7 @@ extension CloudKitSynchronizer {
         
         let recordIDs = adapter.recordIDsMarkedForDeletion(limit: batchSize)
         let recordCount = recordIDs.count
-        
+
         guard recordCount > 0 else {
             completion(nil)
             return

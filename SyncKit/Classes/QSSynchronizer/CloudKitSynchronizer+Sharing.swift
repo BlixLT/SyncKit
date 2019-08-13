@@ -65,7 +65,7 @@ import CloudKit
      - completion: Closure that gets called with an optional error when the operation is completed.
      
      */
-    @objc func share(object: AnyObject, publicPermission: CKShare.Participant.Permission, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
+    @objc func share(object: AnyObject, publicPermission: CKShare.Participant.Permission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
         
         guard let modelAdapter = modelAdapter(for: object),
             let record = modelAdapter.record(for: object) else {
@@ -78,6 +78,11 @@ import CloudKit
         }
         
         addMetadata(to: [record, share])
+        
+        for (key, value) in extraShareAttributes
+        {
+            share[key] = value;
+        }
         
         let operation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
         
@@ -204,5 +209,22 @@ import CloudKit
         }
         
         database.add(operation)
+    }
+    
+    @objc func handleCKShare(_ deletedShare: CKShare, deletionInZone zoneID:CKRecordZone.ID, completion: ((Error?) -> ())?) {
+        if self.database.databaseScope == .private
+        {
+            //private CKShare was deleted;
+            // stop sharing extra data to users that are not participating in any "normal" share
+            let predicate = NSPredicate(format: "QSCloudKitDeviceUUIDKey != 'sdfarg'")
+            let query = CKQuery(recordType:CKRecord.SystemType.share, predicate:predicate)
+            let operation = CKQueryOperation(query : query)
+            operation.desiredKeys = []
+            operation.zoneID = zoneID
+        }
+        else
+        {
+            
+        }
     }
 }

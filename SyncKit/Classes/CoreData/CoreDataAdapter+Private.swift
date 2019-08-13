@@ -57,7 +57,7 @@ extension CoreDataAdapter {
     }
     
     func shouldIgnore(key: String) -> Bool {
-        return key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key)
+        return key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key) || key == "ckOwnerName"
     }
     
     func transformedValue(_ value: Any, valueTransformerName: String) -> Any? {
@@ -136,6 +136,10 @@ extension CoreDataAdapter {
             let object = self.insertManagedObject(entityName: entityName)
             objectID = self.uniqueIdentifier(forObjectFrom: record)
             object.setValue(objectID, forKey: self.identifierFieldName(forEntity: entityName))
+            if self.isShared()
+            {
+                object.setValue(self.recordZoneID.ownerName, forKey: "ckOwnerName")
+            }
         }
         
         syncedEntity.originObjectID = objectID
@@ -238,7 +242,7 @@ extension CoreDataAdapter {
     func recordsToUpload(state: SyncedEntityState, limit: Int) -> [CKRecord] {
         var recordsArray = [CKRecord]()
         privateContext.performAndWait {
-            let entities = fetchEntities(state: state)
+            let entities = sortedEntities(entities:fetchEntities(state: state))
             var pending = entities
             var includedEntityIDs = Set<String>()
             while recordsArray.count < limit && !pending.isEmpty {
@@ -249,16 +253,24 @@ extension CoreDataAdapter {
                         pending.remove(at: index)
                     }
                     let record = self.recordToUpload(for: entity, context: self.targetContext, parentEntity: &parentEntity)
-                    recordsArray.append(record)
-                    includedEntityIDs.insert(entity.identifier!)
-                    entity = parentEntity
+                    if (record != nil)
+                    {
+                        recordsArray.append(record!)
+                        includedEntityIDs.insert(entity.identifier!)
+                        entity = parentEntity
+                    }
+                    else
+                    {
+                        debugPrint("record is nil: %@", entity!)
+                        entity = nil
+                    }
                 }
             }
         }
         return recordsArray
     }
     
-    func recordToUpload(for entity: QSSyncedEntity, context: NSManagedObjectContext, parentEntity: inout QSSyncedEntity?) -> CKRecord {
+    func recordToUpload(for entity: QSSyncedEntity, context: NSManagedObjectContext, parentEntity: inout QSSyncedEntity?) -> CKRecord? {
         var record: CKRecord! = storedRecord(for: entity)
         if record == nil {
             record = CKRecord(recordType: entity.entityType!,
@@ -274,11 +286,17 @@ extension CoreDataAdapter {
         
         context.performAndWait {
             originalObject = self.managedObject(entityName: entityType, identifier: objectID, context: context)
+            if (originalObject == nil)
+            {
+                // originalObject not found. Probably shared ckOwner mismatch (shared synchronizer and not shared object or different owners)
+                return
+            }
             entityDescription = NSEntityDescription.entity(forEntityName: entityType, in: context)
             let primaryKey = self.identifierFieldName(forEntity: entityType)
             // Add attributes
             entityDescription.attributesByName.forEach({ (attributeName, attributeDescription) in
                 if attributeName != primaryKey &&
+                    attributeName != "ckOwnerName" &&
                     (entityState == .new || changedKeys.contains(attributeName)) {
                     let value = originalObject.value(forKey: attributeName)
                     if attributeDescription.attributeType == .binaryDataAttributeType && !self.forceDataTypeInsteadOfAsset,
@@ -296,6 +314,23 @@ extension CoreDataAdapter {
                     }
                 }
             })
+            
+            // to trigger CKRecord's setValue: forKey: for nil x-to-one relationships. Otherwise this field for CKRecord is not being updates
+            entityDescription.relationshipsByName.forEach({ (relationshipName, relationshipDescription) in
+                if (entityState == .new || changedKeys.contains(relationshipName))
+                {
+                    let value = originalObject.value(forKey: relationshipName)
+                    if (value == nil && !relationshipDescription.isToMany)
+                    {
+                        record[relationshipName] = nil
+                    }
+                }
+            })
+        }
+        
+        if (originalObject == nil)
+        {
+            return nil;
         }
         
         let entityClass: AnyClass? = NSClassFromString(entityDescription.managedObjectClassName)
@@ -305,13 +340,37 @@ extension CoreDataAdapter {
         }
         
         let referencedEntities = referencedSyncedEntitiesByReferenceName(for: originalObject, context: context)
-        referencedEntities.forEach { (relationshipName, entity) in
+
+        referencedEntities.forEach { (relationshipName, entityOrSet) in
             if entityState == .new || changedKeys.contains(relationshipName) {
-                let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
-                // if we set the parent we must make the action .deleteSelf, otherwise we get errors if we ever try to delete the parent record
-                let action: CKRecord.Reference.Action = parentKey == relationshipName ? .deleteSelf : .none
-                let recordReference = CKRecord.Reference(recordID: recordID, action: action)
-                record[relationshipName] = recordReference
+                if (entityOrSet is NSSet)
+                {
+                    let entitySet = entityOrSet as! NSSet
+                    let references = NSMutableArray()
+                    entitySet.forEach {
+                        let entity = $0 as! QSSyncedEntity
+                        let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
+                        let recordReference = CKRecord.Reference(recordID: recordID, action: .none)
+                        references.add(recordReference)
+                    }
+                    if references.count > 0
+                    {
+                        record[relationshipName] = references
+                    }
+                    else
+                    {
+                        record[relationshipName] = nil
+                    }
+                }
+                else
+                {
+                    let entity = entityOrSet as! QSSyncedEntity
+                    let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
+                    // if we set the parent we must make the action .deleteSelf, otherwise we get errors if we ever try to delete the parent record
+                    let action: CKRecord.Reference.Action = parentKey == relationshipName ? .deleteSelf : .none
+                    let recordReference = CKRecord.Reference(recordID: recordID, action: action)
+                    record[relationshipName] = recordReference
+                }
             }
         }
         
@@ -320,7 +379,20 @@ extension CoreDataAdapter {
             let reference = record[parentKey] as? CKRecord.Reference {
             // For the parent reference we have to use action .none though, even if we must use .deleteSelf for the attribute (see ^)
             record.parent = CKRecord.Reference(recordID: reference.recordID, action: CKRecord.Reference.Action.none)
-            parentEntity = referencedEntities[parentKey]
+            parentEntity = referencedEntities[parentKey] as? QSSyncedEntity
+        }
+        else if self.shouldShareEntity(entity: entity)
+        {
+            let extraDataParentRecordID = self.extraDataParentRecordID()
+            if extraDataParentRecordID != nil
+            {
+                // For the parent reference we have to use action .none though, even if we must use .deleteSelf for the attribute (see ^)
+                record.parent = CKRecord.Reference(recordID: extraDataParentRecordID!, action: CKRecord.Reference.Action.none)
+            }
+        }
+        else if (entity.entityType == self.extraDataEntityName())
+        {
+            self.updateSharableEntitiesParentKeys(entity, record)
         }
         
         record[CoreDataAdapter.timestampKey] = entity.updatedDate
@@ -328,27 +400,50 @@ extension CoreDataAdapter {
         return record
     }
     
-    func referencedSyncedEntitiesByReferenceName(for object: NSManagedObject, context: NSManagedObjectContext) -> [String: QSSyncedEntity] {
-        var objectIDsByRelationshipName: [String: String]!
+    func referencedSyncedEntitiesByReferenceName(for object: NSManagedObject, context: NSManagedObjectContext) -> [String: Any] {
+        var objectIDsByRelationshipName: [String: Any]!
         context.performAndWait {
             objectIDsByRelationshipName = self.referencedObjectIdentifiersByRelationshipName(for: object)
         }
         
-        var entitiesByName = [String: QSSyncedEntity]()
-        objectIDsByRelationshipName.forEach { (relationshipName, identifier) in
-            if let entity = self.syncedEntity(withOriginIdentifier: identifier) {
-                entitiesByName[relationshipName] = entity
+        var entitiesByName = [String: Any]()
+        objectIDsByRelationshipName.forEach { (relationshipName, identifierOrSet) in
+            if identifierOrSet is NSSet {
+                let identifiersSet = identifierOrSet as! NSSet
+                let entities = NSMutableSet()
+                identifiersSet.forEach {
+                    if let entity = self.syncedEntity(withOriginIdentifier: $0 as! String) {
+                        entities.add(entity)
+                    }
+                }
+                entitiesByName[relationshipName] = entities
+            }
+            else
+            {
+                let identifier = identifierOrSet as! String
+                if let entity = self.syncedEntity(withOriginIdentifier: identifier) {
+                    entitiesByName[relationshipName] = entity
+                }
             }
         }
         return entitiesByName
     }
     
-    func referencedObjectIdentifiersByRelationshipName(for object: NSManagedObject) -> [String: String] {
-        var objectIDs = [String: String]()
+    func referencedObjectIdentifiersByRelationshipName(for object: NSManagedObject) -> [String: Any] {
+        var objectIDs = [String: Any]()
         object.entity.relationshipsByName.forEach { (name, relationshipDescription) in
             if !relationshipDescription.isToMany,
                 let referencedObject = object.value(forKey: name) as? NSManagedObject {
                 objectIDs[relationshipDescription.name] = self.uniqueIdentifier(for: referencedObject)
+            }
+            else if relationshipDescription.inverseRelationship!.isToMany,
+                            let referencedObjects = object.value(forKey: name) as? NSSet {
+                let identifiers = NSMutableSet()
+                referencedObjects.forEach {
+                    let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
+                    identifiers.add(identifier)
+                }
+                objectIDs[relationshipDescription.name] = identifiers
             }
         }
         return objectIDs
@@ -361,6 +456,10 @@ extension CoreDataAdapter {
         let managedObject = NSEntityDescription.insertNewObject(forEntityName: entityName,
                                                                 into: targetImportContext)
         try! targetImportContext.obtainPermanentIDs(for: [managedObject])
+        if self.isShared()
+        {
+            managedObject.setValue(self.recordZoneID.ownerName, forKey: "ckOwnerName")
+        }
         return managedObject
     }
     
@@ -446,7 +545,7 @@ extension CoreDataAdapter {
         }
     }
     
-    func mergeChangesIntoTargetContext(completion: (Error?)->()) {
+    func mergeChangesIntoTargetContext(completion: @escaping (Error?)->()) {
         debugPrint("Requesting save")
         delegate.coreDataAdapter(self, requestsContextSaveWithCompletion: { (error) in
             guard error == nil else {
@@ -468,7 +567,11 @@ extension CoreDataAdapter {
         // Add record for this entity
         var childrenRecords = [CKRecord]()
         var parent: QSSyncedEntity?
-        childrenRecords.append(self.recordToUpload(for: entity, context: targetContext, parentEntity: &parent))
+        let recordToUpload = self.recordToUpload(for: entity, context: targetContext, parentEntity: &parent)
+        if (recordToUpload != nil)
+        {
+            childrenRecords.append(recordToUpload!)
+        }
         
         let relationships = childrenRelationships[entity.entityType!] ?? []
         for relationship in relationships {
@@ -507,7 +610,8 @@ extension CoreDataAdapter {
     func prepareRelationshipChanges(for object: NSManagedObject, record: CKRecord) -> [String] {
         var relationships = [String]()
         for relationshipName in object.entity.relationshipsByName.keys {
-            if object.entity.relationshipsByName[relationshipName]!.isToMany {
+            if object.entity.relationshipsByName[relationshipName]!.isToMany && (object.entity.relationshipsByName[relationshipName]!.inverseRelationship != nil) &&
+                !object.entity.relationshipsByName[relationshipName]!.inverseRelationship!.isToMany {
                 continue
             }
             
@@ -527,6 +631,17 @@ extension CoreDataAdapter {
                                                          insertInto: privateContext)
                 relationship.relationshipName = key
                 relationship.targetIdentifier = reference.recordID.recordName
+                relationship.forEntity = entity
+            }
+            else if let reference = record[key] as? [CKRecord.Reference] {
+                let targetIdentifiers = NSMutableArray()
+                reference.forEach {
+                    targetIdentifiers.add($0.recordID.recordName)
+                }
+                let relationship = QSPendingRelationship(entity: NSEntityDescription.entity(forEntityName: "QSPendingRelationship", in: self.privateContext)!,
+                                                         insertInto: self.privateContext)
+                relationship.relationshipName = key
+                relationship.targetIdentifier = targetIdentifiers.componentsJoined(by:",")
                 relationship.forEntity = entity
             }
         }
@@ -551,7 +666,16 @@ extension CoreDataAdapter {
         fetchRequest.relationshipKeyPathsForPrefetching = ["originIdentifier", "pendingRelationships"]
         return try! privateContext.fetch(fetchRequest) as! [QSSyncedEntity]
     }
-    
+
+    func allEntities() -> [QSSyncedEntity] {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>()
+        fetchRequest.entity = NSEntityDescription.entity(forEntityName: "QSSyncedEntity", in: privateContext)!
+        fetchRequest.resultType = .managedObjectResultType
+        fetchRequest.returnsObjectsAsFaults = false
+        fetchRequest.relationshipKeyPathsForPrefetching = ["originIdentifier", "pendingRelationships"]
+        return try! privateContext.fetch(fetchRequest) as! [QSSyncedEntity]
+    }
+
     func pendingShareRelationship(for entity: QSSyncedEntity) -> QSPendingRelationship? {
         
         return (entity.pendingRelationships as? Set<QSPendingRelationship>)?.first {
@@ -572,18 +696,35 @@ extension CoreDataAdapter {
         return RelationshipTarget(originObjectID: dictionary["originObjectID"], entityType: dictionary["entityType"])
     }
     
-    func pendingRelationshipTargetIdentifiers(for entity: QSSyncedEntity) -> [String: RelationshipTarget] {
+    func pendingRelationshipTargetIdentifiers(for entity: QSSyncedEntity) -> [String: Any] {
         guard let pending = entity.pendingRelationships as? Set<QSPendingRelationship> else { return [:] }
-        var relationships = [String: RelationshipTarget]()
+        var relationships = [String: Any]()
         
         for pendingRelationship in pending {
             if pendingRelationship.relationshipName == "share" {
                 continue
             }
             
-            if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: pendingRelationship.targetIdentifier!) {
-                relationships[pendingRelationship.relationshipName!] = targetObjectInfo
+            let targetIdentierString = pendingRelationship.targetIdentifier!
+            let identifiers = targetIdentierString.components(separatedBy: ",") as [String]
+            
+            if identifiers.count <= 1
+            {
+                if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: pendingRelationship.targetIdentifier!) {
+                    relationships[pendingRelationship.relationshipName!] = targetObjectInfo
+                }
             }
+            else
+            {
+                let targetObjectInfos = NSMutableArray()
+                identifiers.forEach {
+                    if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: $0) {
+                        targetObjectInfos.add(targetObjectInfo)
+                    }
+                }
+                relationships[pendingRelationship.relationshipName!] = targetObjectInfos
+            }
+            
         }
         return relationships
     }
@@ -643,31 +784,243 @@ extension CoreDataAdapter {
                                               context: context)
             for managedObject in objects {
                 guard let query = queries[self.uniqueIdentifier(for: managedObject)] else { continue }
-                query.targetRelationshipsDictionary?.forEach({ (relationshipName, target) in
+                query.targetRelationshipsDictionary?.forEach({ (relationshipName, targetOrTargetsArray) in
                     let shouldApplyTarget = query.state.rawValue > SyncedEntityState.changed.rawValue ||
                         self.mergePolicy == .server ||
                         (self.mergePolicy == .client && (!query.changedKeys.contains(relationshipName) || (query.state == .new && managedObject.value(forKey: relationshipName) == nil)))
-                    if let entityType = target.entityType,
-                        let originObjectID = target.originObjectID,
-                        shouldApplyTarget {
-                        let targetManagedObject = self.managedObject(entityName: entityType,
-                                                                     identifier: originObjectID,
-                                                                     context: context)
-                        managedObject.setValue(targetManagedObject, forKey: relationshipName)
-                    } else if self.mergePolicy == .custom,
-                        let entityType = target.entityType,
-                        let originObjectID = target.originObjectID,
-                        let conflictDelegate = self.conflictDelegate,
-                        let targetManagedObject = self.managedObject(entityName: entityType,
-                                                                     identifier: originObjectID,
-                                                                     context: context) {
-                        
-                        conflictDelegate.coreDataAdapter(self,
-                                                         gotChanges: [relationshipName: targetManagedObject],
-                                                         for: managedObject)
+                    
+                    let isToMany = managedObject.entity.relationshipsByName[relationshipName]!.isToMany
+                    var targetOrArray = targetOrTargetsArray
+                    if isToMany && targetOrArray is RelationshipTarget {
+                        targetOrArray = [ targetOrArray ]
+                    }
+                    if targetOrArray is RelationshipTarget {
+                        let target = targetOrArray as! RelationshipTarget
+                        if let entityType = target.entityType,
+                            let originObjectID = target.originObjectID,
+                            shouldApplyTarget {
+                            let targetManagedObject = self.managedObject(entityName: entityType,
+                                                                         identifier: originObjectID,
+                                                                         context: context)
+                            managedObject.setValue(targetManagedObject, forKey: relationshipName)
+                        } else if self.mergePolicy == .custom,
+                            let entityType = target.entityType,
+                            let originObjectID = target.originObjectID,
+                            let conflictDelegate = self.conflictDelegate,
+                            let targetManagedObject = self.managedObject(entityName: entityType,
+                                                                         identifier: originObjectID,
+                                                                         context: context) {
+                            
+                            conflictDelegate.coreDataAdapter(self,
+                                                             gotChanges: [relationshipName: targetManagedObject],
+                                                             for: managedObject)
+                        }
+                    }
+                    else if targetOrArray is NSArray
+                    {
+                        let targetObjectInfos = targetOrArray as! NSArray
+                        let isOrdered = managedObject.entity.relationshipsByName[relationshipName]!.isOrdered
+                        let targetObjectsOrdered = NSMutableOrderedSet()
+                        targetObjectInfos.forEach {
+                            let originObjectID = ($0 as! RelationshipTarget).originObjectID
+                            let entityType = ($0 as! RelationshipTarget).entityType
+                            let targetManagedObject = self.managedObject(entityName: entityType as! String,
+                                                                         identifier: originObjectID as! String,
+                                                                         context: context)
+                            if targetManagedObject != nil
+                            {
+                                targetObjectsOrdered.add(targetManagedObject!)
+                            }
+                        }
+                        if (isOrdered)
+                        {
+                            if shouldApplyTarget {
+                                managedObject.setValue(targetObjectsOrdered, forKey: relationshipName)
+                            }
+                            else if self.mergePolicy == .custom, let conflictDelegate = self.conflictDelegate
+                            {
+                                conflictDelegate.coreDataAdapter(self,
+                                                                 gotChanges: [relationshipName: targetObjectsOrdered],
+                                                                 for: managedObject)
+                            }
+                        }
+                        else
+                        {
+                            let targetObjects = targetObjectsOrdered.set
+                            if shouldApplyTarget {
+                                managedObject.setValue(targetObjects, forKey: relationshipName)
+                            }
+                            else if self.mergePolicy == .custom, let conflictDelegate = self.conflictDelegate
+                            {
+                                conflictDelegate.coreDataAdapter(self,
+                                                                 gotChanges: [relationshipName: targetObjects],
+                                                                 for: managedObject)
+                            }
+                        }
                     }
                 })
             }
         }
+    }
+    
+    func shouldShareEntity(entity:QSSyncedEntity) -> Bool
+    {
+        if (self.sharableEntities().contains(entity.entityType!))
+        {
+            return true
+        }
+        return false
+    }
+    
+    func sharableEntities() -> [String]
+    {
+        return ["Payee", "Category","TradableAsset", "Tag", "Currency"]
+    }
+    
+    func extraDataEntityName() -> String
+    {
+        return "SharedData"
+    }
+    
+    func extraDataParentRecordID() -> CKRecord.ID?
+    {
+        let predicate = NSPredicate(format: "entityType == %@", self.extraDataEntityName())
+        let fetchedObjects = try? self.privateContext?.executeFetchRequest(entityName:"QSSyncedEntity", predicate: predicate) as? [QSSyncedEntity]
+        if (fetchedObjects!.count > 0)
+        {
+            let syncedEntity = (fetchedObjects?.first)!
+            let recordID = recordIDForSyncedEntity(syncedEntity)
+            return recordID
+        }
+        return nil
+    }
+    
+    func updateSharableEntitiesParentKeys(_ entity:QSSyncedEntity, _ sharedDataRecord:CKRecord)
+    {
+        entity.managedObjectContext!.perform
+        {
+            guard let entityDescription = NSEntityDescription.entity(forEntityName: "QSSyncedEntity", in: entity.managedObjectContext!) else { return }
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>()
+            fetchRequest.entity = entityDescription
+            fetchRequest.resultType = .managedObjectResultType
+            let predicate = NSPredicate(format: "entityType in %@", self.sharableEntities())
+            fetchRequest.predicate = predicate
+            fetchRequest.returnsObjectsAsFaults = false
+            let entitiesToUpdate = try? entity.managedObjectContext?.fetch(fetchRequest) as? [QSSyncedEntity]
+            entitiesToUpdate!.forEach {
+                let record = self.storedRecord(for: $0 as QSSyncedEntity)
+                if (record != nil)
+                {
+                    let parentReference = record!.parent
+                    if (parentReference == nil || parentReference!.recordID != sharedDataRecord.recordID)
+                    {
+                        record!.parent = CKRecord.Reference(recordID: sharedDataRecord.recordID, action: .none)
+                        if ($0.entityState == .synced)
+                        {
+                            $0.entityState = .changed
+                        }
+                    }
+                }
+                else
+                {
+                    debugPrint("no record for syncedEntity: %@", $0)
+                }
+            }
+        }
+    }
+    
+    func recordIDForSyncedEntity(_ syncedEntity:QSSyncedEntity) -> CKRecord.ID
+    {
+        return CKRecord.ID(recordName: syncedEntity.identifier!, zoneID: self.recordZoneID)
+    }
+    
+    func sortedEntities(entities: [QSSyncedEntity]) -> [QSSyncedEntity]
+    {
+        let entityNamesSorted = self.entityNamesSorted()
+        let sortedEntitiesMutable = NSMutableArray(array:entities)
+        entityNamesSorted.forEach {
+            let predicate = NSPredicate(format: "entityType = %@", $0)
+            let filteredEntities = entities.filter { predicate.evaluate(with: $0) }
+            sortedEntitiesMutable.removeObjects(in:filteredEntities)
+            sortedEntitiesMutable.addObjects(from:filteredEntities)
+        }
+        return sortedEntitiesMutable as! [QSSyncedEntity]
+    }
+    
+    func entityNamesSorted() -> [String]
+    {
+        if self.targetImportContext == nil
+        {
+            debugPrint("entityNamesSorted. targetImportContext is nil")
+            return []
+        }
+        let entitiesByName = self.targetImportContext.persistentStoreCoordinator?.managedObjectModel.entitiesByName
+        var entityNamesSorted = [String]()
+        entitiesByName?.forEach { (entityName, entityDescription) in
+            if (!entityNamesSorted.contains(entityName))
+            {
+                entityNamesSorted.append(entityName)
+            }
+            entityDescription.relationshipsByName.forEach { (relationshipName, relationshipDescription) in
+                let destinationEntityName = relationshipDescription.destinationEntity!.name
+                if (destinationEntityName != entityName)
+                {
+                    if isOneToManyRelationship(relationshipDescription)
+                    {
+                        let destinationEntityIndex = entityNamesSorted.firstIndex(of: destinationEntityName!)
+                        var sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
+                        if destinationEntityIndex == NSNotFound || destinationEntityIndex == nil || destinationEntityIndex! < sourceEntityIndex!
+                        {
+                            // move destination entityName to the right of source (destination should be imported after source)
+                            if destinationEntityIndex != NSNotFound && destinationEntityIndex != nil
+                            {
+                                entityNamesSorted.remove(at: destinationEntityIndex!)
+                            }
+                            sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
+                            entityNamesSorted.insert(destinationEntityName!, at:sourceEntityIndex!+1)
+                        }
+                    }
+                    else if isManyToOneRelationship(relationshipDescription)
+                    {
+                        let destinationEntityIndex = entityNamesSorted.firstIndex(of: destinationEntityName!)
+                        var sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
+                        if destinationEntityIndex == NSNotFound || destinationEntityIndex == nil || destinationEntityIndex! > sourceEntityIndex!
+                        {
+                            // move destination entityName to the left of source (destination should be imported before source)
+                            if destinationEntityIndex != NSNotFound && destinationEntityIndex != nil
+                            {
+                                entityNamesSorted.remove(at: destinationEntityIndex!)
+                            }
+                            sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
+                            entityNamesSorted.insert(destinationEntityName!, at:sourceEntityIndex!)
+                        }
+                    }
+                }
+            }
+        }
+        
+        if let index = entityNamesSorted.firstIndex(of: self.extraDataEntityName()) {
+            entityNamesSorted.remove(at: index)
+            entityNamesSorted.append(self.extraDataEntityName())
+        }
+        return entityNamesSorted
+    }
+    
+    func isOneToManyRelationship(_ relationshipDescription : NSRelationshipDescription) -> Bool
+    {
+        if relationshipDescription.isToMany && relationshipDescription.inverseRelationship != nil && !relationshipDescription.inverseRelationship!.isToMany
+        {
+            return true
+        }
+        return false
+    }
+
+    func isManyToOneRelationship(_ relationshipDescription : NSRelationshipDescription) -> Bool
+    {
+        if !relationshipDescription.isToMany && relationshipDescription.inverseRelationship != nil && relationshipDescription.inverseRelationship!.isToMany
+        {
+            return true
+        }
+        return false
     }
 }
