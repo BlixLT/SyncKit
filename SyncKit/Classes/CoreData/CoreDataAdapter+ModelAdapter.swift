@@ -171,7 +171,10 @@ extension CoreDataAdapter: ModelAdapter {
     public func recordIDsMarkedForDeletion(limit: Int) -> [CKRecord.ID] {
         var recordIDs = [CKRecord.ID]()
         privateContext.performAndWait {
-            let deletedEntities = self.fetchEntities(state: .deleted)
+            let unsortedDeletedEntities = self.fetchEntities(state: .deleted)
+            var deletedEntities = sortedEntities(entities:unsortedDeletedEntities)
+            // upload deletions with reversed sort compared to insertions
+            deletedEntities = deletedEntities.reversed()
             for entity in deletedEntities {
                 let record = self.storedRecord(for: entity)
                 if let record = record {

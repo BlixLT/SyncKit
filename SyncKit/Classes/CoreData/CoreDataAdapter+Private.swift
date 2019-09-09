@@ -367,7 +367,8 @@ extension CoreDataAdapter {
                     let entity = entityOrSet as! QSSyncedEntity
                     let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
                     // if we set the parent we must make the action .deleteSelf, otherwise we get errors if we ever try to delete the parent record
-                    let action: CKRecord.Reference.Action = parentKey == relationshipName ? .deleteSelf : .none
+                    // with deleteSelf sharable children count is 750, with .none - much bigger (?). We just need to handle correct deletions upload order to avoid reference violation errors.
+                    let action: CKRecord.Reference.Action = parentKey == relationshipName ? .none : .none
                     let recordReference = CKRecord.Reference(recordID: recordID, action: action)
                     record[relationshipName] = recordReference
                 }
