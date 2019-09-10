@@ -20,9 +20,12 @@ extension CoreDataAdapter: ModelAdapter {
             self.savePrivateContext()
         }
     }
-    
-    public func saveChanges(in records: [CKRecord]) {
-        guard records.count > 0 else { return }
+
+    public func saveChanges(in records: [CKRecord], completion: @escaping (Error?)->()) {
+        guard records.count > 0 else {
+            completion(nil)
+            return
+        }
         
         privateContext.perform {
             debugPrint("Save changes in records")
@@ -62,6 +65,12 @@ extension CoreDataAdapter: ModelAdapter {
                 queryByEntityType[entityType]?[originObjectID] = query
             }
             
+            var tempTargetImportContext = self.targetImportContext
+            if self.targetImportContext == nil {
+                debugPrint("save records. will configure import context")
+                self.configureImportContext()
+                tempTargetImportContext = self.targetImportContext
+            }
             self.targetImportContext.performAndWait {
                 debugPrint("Applying attribute changes in records")
                 for entityType in queryByEntityType.keys {
@@ -94,6 +103,14 @@ extension CoreDataAdapter: ModelAdapter {
                         query.toSaveRelationshipNames = relationshipsToSave
                     }
                 }
+                if tempTargetImportContext != nil
+                {
+                    debugPrint("save records. will clear import context")
+                    tempTargetImportContext!.performAndWait {
+                        tempTargetImportContext!.reset()
+                    }
+                    tempTargetImportContext = nil
+                }
             }
             
             for record in records {
@@ -111,7 +128,12 @@ extension CoreDataAdapter: ModelAdapter {
                 syncedEntity.updatedDate = record[CoreDataAdapter.timestampKey]
                 self.save(record: record, for: syncedEntity)
             }
+            completion(nil)
         }
+    }
+
+    public func saveChanges(in records: [CKRecord]) {
+        self.saveChanges(in: records, completion: { (Error) in })
     }
     
     public func deleteRecords(with recordIDs: [CKRecord.ID]) {

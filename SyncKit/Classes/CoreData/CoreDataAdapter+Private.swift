@@ -19,11 +19,13 @@ extension CoreDataAdapter {
     }
     
     func configureImportContext() {
+        debugPrint("configureImportContext");
         targetImportContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         targetImportContext.parent = targetContext
     }
     
     func clearImportContext() {
+        debugPrint("clearImportContext");
         guard let targetImportContext = targetImportContext else { return }
         targetImportContext.performAndWait {
             self.targetImportContext.reset()

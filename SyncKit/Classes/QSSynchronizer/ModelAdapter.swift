@@ -49,6 +49,7 @@ public extension Notification.Name {
      *
      *  @param records Array of `CKRecord` that were obtained from CloudKit.
      */
+    func saveChanges(in records: [CKRecord], completion: @escaping (Error?)->())
     func saveChanges(in records: [CKRecord])
     
     /**
