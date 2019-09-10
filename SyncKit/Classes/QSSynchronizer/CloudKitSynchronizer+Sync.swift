@@ -11,6 +11,7 @@ import CloudKit
 extension CloudKitSynchronizer {
     
     func performSynchronization() {
+        debugPrint("performSynchronization")
         dispatchQueue.async {
             self.postNotification(.SynchronizerWillSynchronize)
             self.serverChangeToken = self.storedDatabaseToken
@@ -165,6 +166,7 @@ extension CloudKitSynchronizer {
 extension CloudKitSynchronizer {
     
     func fetchChanges() {
+        debugPrint("fetchChanges")
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -196,6 +198,7 @@ extension CloudKitSynchronizer {
                 let zoneIDsToFetch = self.loadTokens(for: changedZoneIDs, loadAdapters: true)
                 
                 guard zoneIDsToFetch.count > 0 else {
+                    debugPrint("zoneIDsToFetch.count == 0")
                     self.resetActiveTokens()
                     completion(token, nil)
                     return
@@ -220,6 +223,7 @@ extension CloudKitSynchronizer {
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
         let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: nil, desiredKeys: nil) { (zoneResults) in
             
+            debugPrint("fetchZoneChanges")
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var error: Error? = nil
@@ -252,6 +256,7 @@ extension CloudKitSynchronizer {
     }
     
     func mergeChanges(completion: @escaping (Error?)->()) {
+        debugPrint("mergeChanges")
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -288,6 +293,7 @@ extension CloudKitSynchronizer {
 extension CloudKitSynchronizer {
     
     func uploadChanges() {
+        debugPrint("uploadChanges")
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return

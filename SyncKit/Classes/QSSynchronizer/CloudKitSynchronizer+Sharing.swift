@@ -221,10 +221,146 @@ import CloudKit
             let operation = CKQueryOperation(query : query)
             operation.desiredKeys = []
             operation.zoneID = zoneID
+            let existingShares = NSMutableArray()
+            operation.recordFetchedBlock =  { (record : CKRecord) in
+                if record is CKShare {
+                    existingShares.add(record)
+                }
+            }
+            operation.completionBlock = {
+                let userRecordNamesThatAcceptedAnyShare = NSMutableSet()
+                var extraDataShares  = [CKShare]()
+                existingShares.forEach { (existingShare) in
+                    if !self.isExtraSharedDataShare(share: existingShare as! CKShare)
+                    {
+                        (existingShare as! CKShare).participants.forEach { (participant) in
+                            if participant.acceptanceStatus == .accepted {
+                                userRecordNamesThatAcceptedAnyShare.add(participant.userIdentity.userRecordID?.recordName)
+                            }
+                        }
+                    }
+                    else
+                    {
+                        extraDataShares.append(existingShare as! CKShare)
+                    }
+                }
+                let extraDataShare = extraDataShares.last
+                
+                if extraDataShare!.participants.count > 0
+                {
+                    let participantsToRemoveFromExtraSharedData = NSMutableSet()
+                    let updatedParticipants = NSMutableArray()
+                    extraDataShare!.participants.forEach { (participant) in
+                        if userRecordNamesThatAcceptedAnyShare.contains(participant.userIdentity.userRecordID?.recordName)
+                        {
+                            updatedParticipants.add(participant)
+                        }
+                        else
+                        {
+                            participantsToRemoveFromExtraSharedData.add(participant)
+                        }
+                    }
+                    if participantsToRemoveFromExtraSharedData.count > 0
+                    {
+                        var shouldStopSharingExtraData:Bool = false
+                        participantsToRemoveFromExtraSharedData.forEach { (participant) in
+                            if participant as! CKShare.Participant == extraDataShare!.owner
+                            {
+                                // current user does not have any accounts shared (currently we does not stop sharing, because otherwise it will take longer for user to share account)
+                                // shouldStopSharingExtraData = true
+                            }
+                            else
+                            {
+                                extraDataShare!.removeParticipant(participant as! CKShare.Participant)
+                            }
+                        }
+                        if shouldStopSharingExtraData
+                        {
+                            debugPrint("shouldStopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
+                        }
+                        else
+                        {
+                            debugPrint("should not stopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
+                            self.saveChangesForShare(extraDataShare!, completion: { (share, saveChangesError) in
+                                var hasShareLocally : Bool = false
+                                self.modelAdapters.forEach {
+                                    if $0.hasRecordID(deletedShare.recordID)
+                                    {
+                                        hasShareLocally = true
+                                    }
+                                }
+                                
+                                if hasShareLocally
+                                {
+                                    DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
+                                        self.synchronize(completion: completion)
+                                    }
+                                }
+                                else
+                                {
+                                    completion!(saveChangesError)
+                                }
+                            })
+                            return
+                        }
+                    }
+                    var hasShareLocally : Bool = false
+                    self.modelAdapters.forEach {
+                        if $0.hasRecordID(deletedShare.recordID)
+                        {
+                            hasShareLocally = true
+                        }
+                    }
+                    
+                    if hasShareLocally
+                    {
+                        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
+                            self.synchronize(completion: completion)
+                        }
+                    }
+                    else
+                    {
+                        completion!(nil)
+                    }
+                }
+                else
+                {
+                    completion!(nil)
+                }
+            }
+            self.database.add(operation)
         }
         else
         {
             
         }
+    }
+
+    func isExtraSharedDataShare(share : CKShare) -> Bool
+    {
+        if share.publicPermission == .readWrite {
+            return true
+        }
+        return false
+    }
+
+    func saveChangesForShare(_ object: CKShare, completion: ((CKShare?, Error?) -> ())?) {
+        let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: [object], recordIDsToDelete : [])
+        modifyRecordsOperation.queuePriority = .high
+        modifyRecordsOperation.qualityOfService = .userInitiated
+        modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+            var savedShares  = [CKShare]()
+            savedRecords!.forEach { (record) in
+                if record is CKShare
+                {
+                    savedShares.append(record as! CKShare)
+                }
+            }
+            let share : CKShare = savedShares.first!
+            self.dispatchQueue.async {
+                completion! (share, operationError)
+            }
+        }
+        self.database.add(modifyRecordsOperation)
     }
 }
