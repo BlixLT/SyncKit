@@ -330,9 +330,100 @@ import CloudKit
             }
             self.database.add(operation)
         }
-        else
+        else if self.database.databaseScope == .shared
         {
+            debugPrint("handle CKShare deletion in shared db")
+            // other owner's share was deleted
             
+            let predicate = NSPredicate(format: "QSCloudKitDeviceUUIDKey != 'sdfarg'")
+            let query = CKQuery(recordType:CKRecord.SystemType.share, predicate:predicate)
+            let operation = CKQueryOperation(query : query)
+            operation.desiredKeys = []
+            operation.zoneID = zoneID
+            let existingShares = NSMutableArray()
+            operation.recordFetchedBlock =  { (record : CKRecord) in
+                if record is CKShare {
+                    existingShares.add(record)
+                }
+            }
+            operation.completionBlock = {
+                var extraDataShares  = [CKShare]()
+                var hasAcceptedAnyAccountFromRemovedShareOwner : Bool = false
+                existingShares.forEach { (existingShare) in
+                    if !self.isExtraSharedDataShare(share: existingShare as! CKShare)
+                    {
+                        (existingShare as! CKShare).participants.forEach { (participant) in
+                            if participant == (existingShare as! CKShare).currentUserParticipant {
+                                hasAcceptedAnyAccountFromRemovedShareOwner = true
+                            }
+                        }
+                    }
+                    else
+                    {
+                        extraDataShares.append(existingShare as! CKShare)
+                    }
+                }
+                let extraDataShare = extraDataShares.last
+
+                if extraDataShare != nil && !hasAcceptedAnyAccountFromRemovedShareOwner
+                {
+                    let deleteShareOperation = CKModifyRecordsOperation(recordsToSave: [], recordIDsToDelete: [extraDataShare!.recordID])
+                    deleteShareOperation.queuePriority = .high
+                    deleteShareOperation.qualityOfService = .userInitiated
+                    deleteShareOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+                        if deletedRecordIDs!.contains(extraDataShare!.recordID)
+                        {
+                            debugPrint("extra data share removed successfully remotely")
+                        }
+                        self.synchronize { (synchronizeSharedDataError) in
+                            var hasShareLocally : Bool = false
+                            self.modelAdapters.forEach {
+                                if $0.hasRecordID(deletedShare.recordID)
+                                {
+                                    hasShareLocally = true
+                                }
+                            }
+                            
+                            if hasShareLocally
+                            {
+                                DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3) {
+                                    self.synchronize(completion: completion)
+                                }
+                            }
+                            else
+                            {
+                                completion!(synchronizeSharedDataError)
+                            }
+
+                        }
+                    }
+                    self.database.add(deleteShareOperation)
+                }
+                else
+                {
+                    self.synchronize { (synchronizeSharedDataError) in
+                        var hasShareLocally : Bool = false
+                        self.modelAdapters.forEach {
+                            if $0.hasRecordID(deletedShare.recordID)
+                            {
+                                hasShareLocally = true
+                            }
+                        }
+                        
+                        if hasShareLocally
+                        {
+                            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3) {
+                                self.synchronize(completion: completion)
+                            }
+                        }
+                        else
+                        {
+                            completion!(synchronizeSharedDataError)
+                        }
+                    }
+                }
+            }
+            self.database.add(operation)
         }
     }
 
