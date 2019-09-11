@@ -65,7 +65,7 @@ extension CoreDataAdapter: ModelAdapter {
                 queryByEntityType[entityType]?[originObjectID] = query
             }
             
-            var tempTargetImportContext = self.targetImportContext
+            var tempTargetImportContext : NSManagedObjectContext? = nil
             if self.targetImportContext == nil {
                 debugPrint("save records. will configure import context")
                 self.configureImportContext()
