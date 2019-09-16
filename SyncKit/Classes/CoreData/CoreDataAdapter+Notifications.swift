@@ -11,6 +11,10 @@ import CoreData
 
 extension CoreDataAdapter {
     @objc func targetContextWillSave(notification: Notification) {
+        if isMergingImportedChanges
+        {
+            debugPrint("targetContextWillSave.ignore. updated:", targetContext.updatedObjects)
+        }
         if let object = notification.object as? NSManagedObjectContext,
             object == targetContext && !isMergingImportedChanges {
             let updated = Array(targetContext.updatedObjects)
@@ -51,6 +55,10 @@ extension CoreDataAdapter {
     }
     
     @objc func targetContextDidSave(notification: Notification) {
+        if isMergingImportedChanges
+        {
+            debugPrint("targetContextDidSave.ignore",  notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? "no inserted", notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? "no updated", notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? "no deleted")
+        }
             if let object = notification.object as? NSManagedObjectContext,
                 object == targetContext && !isMergingImportedChanges {
             var inserted = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>
@@ -153,6 +161,10 @@ extension CoreDataAdapter {
     
     // MARK: sharing
     @objc func targetContextObjectsDidChange(notification: Notification) {
+        if isMergingImportedChanges
+        {
+            debugPrint("targetContextObjectsDidChange.ignore",  notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? "no inserted", notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? "no updated", notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? "no deleted")
+        }
         if let object = notification.object as? NSManagedObjectContext, object == targetContext {
             let updated = notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>
             updated?.forEach {

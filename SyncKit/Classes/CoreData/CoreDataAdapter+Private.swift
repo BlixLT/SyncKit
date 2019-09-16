@@ -59,7 +59,18 @@ extension CoreDataAdapter {
     }
     
     func shouldIgnore(key: String) -> Bool {
-        return key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key) || key == "ckOwnerName"
+        if key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key) || key == "ckOwnerName"
+        {
+            return true
+        }
+        if self.isShared()
+        {
+            if key == "sortOrder" || key == "closed" || key == "eBankType" || key == "eBankURL" || key == "eBankBankID" || key == "eBankBankName" || key == "eBankAtriumMember" || key == "eBankAccountNumber" || key == "eBankStartDate" || key == "eBankAccountID" || key == "eBankAccountType" || key == "eBankAccountIsActivated" || key == "eBankSaltEdgeLoginSecret" || key == "folder"
+            {
+                return true
+            }
+        }
+        return false
     }
     
     func transformedValue(_ value: Any, valueTransformerName: String?) -> Any? {

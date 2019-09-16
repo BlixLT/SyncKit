@@ -441,6 +441,7 @@ extension CloudKitSynchronizer {
         let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (databaseToken, changedZoneIDs, deletedZoneIDs) in
             self.dispatchQueue.async {
                 self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
+                debugPrint("updateTokens. changedZoneIDs: ", changedZoneIDs)
                 if changedZoneIDs.count > 0 {
                     let zoneIDs = self.loadTokens(for: changedZoneIDs, loadAdapters: false)
                     self.updateServerToken(for: zoneIDs, completion: { (needsToFetchChanges) in
@@ -462,6 +463,7 @@ extension CloudKitSynchronizer {
     func updateServerToken(for recordZoneIDs: [CKRecordZone.ID], completion: @escaping (Bool)->()) {
         
         // If we found a new record zone at this point then needsToFetchChanges=true
+        debugPrint("updateServerToken")
         var hasAllTokens = true
         for zoneID in recordZoneIDs {
             if activeZoneTokens[zoneID] == nil {
@@ -481,6 +483,7 @@ extension CloudKitSynchronizer {
                 for (zoneID, result) in zoneResults {
                     let adapter = self.modelAdapterDictionary[zoneID]
                     if result.downloadedRecords.count > 0 || result.deletedRecordIDs.count > 0 {
+                        debugPrint("needsToRefetch")
                         needsToRefetch = true
                     } else {
                         adapter?.saveToken(result.serverChangeToken)
