@@ -73,24 +73,14 @@ extension CoreDataAdapter {
         return false
     }
     
-    func transformedValue(_ value: Any, valueTransformerName: String?) -> Any? {
-        if let valueTransformerName = valueTransformerName {
-            let transformer = ValueTransformer(forName: NSValueTransformerName(valueTransformerName))
-            return transformer?.transformedValue(value)
-        } else {
-            return QSCoder.shared.data(from: value)
-        }
+    func transformedValue(_ value: Any, valueTransformerName: String) -> Any? {
+        let transformer = ValueTransformer(forName: NSValueTransformerName(valueTransformerName))
+        return transformer?.transformedValue(value)
     }
     
-    func reverseTransformedValue(_ value: Any, valueTransformerName: String?) -> Any? {
-        if let valueTransformerName = valueTransformerName {
-            let transformer = ValueTransformer(forName: NSValueTransformerName(valueTransformerName))
-            return transformer?.reverseTransformedValue(value)
-        } else if let data = value as? Data {
-            return QSCoder.shared.object(from: data)
-        } else {
-            return nil
-        }
+    func reverseTransformedValue(_ value: Any, valueTransformerName: String) -> Any? {
+        let transformer = ValueTransformer(forName: NSValueTransformerName(valueTransformerName))
+        return transformer?.reverseTransformedValue(value)
     }
     
     func threadSafePrimaryKeyValue(for object: NSManagedObject) -> String {
@@ -329,7 +319,8 @@ extension CoreDataAdapter {
                         record[attributeName] = asset
                     } else if attributeDescription.attributeType == .transformableAttributeType,
                         let value = value,
-                        let transformed = self.transformedValue(value, valueTransformerName: attributeDescription.valueTransformerName) as? CKRecordValueProtocol{
+                        let transformerName = attributeDescription.valueTransformerName,
+                        let transformed = self.transformedValue(value, valueTransformerName: transformerName) as? CKRecordValueProtocol{
                         record[attributeName] = transformed
                     } else {
                         record[attributeName] = value as? CKRecordValueProtocol
@@ -558,10 +549,11 @@ extension CoreDataAdapter {
             let data = try? Data(contentsOf: url) else { return }
             object.setValue(data, forKey: attributeName)
         } else if let value = value,
-            attributeDescription.attributeType == .transformableAttributeType {
-                object.setValue(reverseTransformedValue(value,
-                                                        valueTransformerName: attributeDescription.valueTransformerName),
-                                forKey: attributeName)
+            attributeDescription.attributeType == .transformableAttributeType,
+            let valueTransformerName = attributeDescription.valueTransformerName {
+            object.setValue(reverseTransformedValue(value,
+                                                    valueTransformerName: valueTransformerName),
+                            forKey: attributeName)
         } else {
             object.setValue(value, forKey: attributeName)
         }
