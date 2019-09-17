@@ -304,13 +304,62 @@ extension CloudKitSynchronizer {
         uploadChanges() { (error) in
             if let error = error {
                 if self.isServerRecordChangedError(error as NSError) {
-                    self.fetchChanges()
+                    self.handleServerRecordChangedError(serverRecordsChangedError:error as NSError) {
+                        (error) in
+                        self.fetchChanges()
+                    }
                 } else {
                     self.finishSynchronization(error: error)
                 }
             } else {
                 self.updateTokens()
             }
+        }
+    }
+    
+    func handleServerRecordChangedError(serverRecordsChangedError:NSError, completion: @escaping (Error?)->()) {
+        
+        let errorsByItemID = serverRecordsChangedError.userInfo[CKPartialErrorsByItemIDKey] as? [CKRecord.ID: NSError]
+        var serverRecordChangedRecordIDs : [CKRecord.ID] = [CKRecord.ID] ()
+        errorsByItemID!.forEach { (ckrecordid, error) in
+            if error.code == CKError.serverRecordChanged.rawValue {
+                serverRecordChangedRecordIDs.append(ckrecordid)
+            }
+        }
+        
+        if serverRecordChangedRecordIDs.count > 0 {
+            let fetchRecordsOperation = CKFetchRecordsOperation(recordIDs: serverRecordChangedRecordIDs)
+            fetchRecordsOperation.fetchRecordsCompletionBlock = { recordsByID, fetchRecordsError in
+                    
+                let fetchedRecords = Array(recordsByID!.values)
+                debugPrint("ServerRecordChanged records downloaded: ", fetchedRecords.count)
+                if let resultError = fetchRecordsError {
+                    completion(resultError)
+                } else {
+                    var recordsByZoneID = [CKRecordZone.ID : [CKRecord]]()
+                    fetchedRecords.forEach { ckrecord in
+                        let zoneID = ckrecord.recordID.zoneID
+                        
+                        // get existing items, or create new array if doesn't exist
+                        var existingItems = recordsByZoneID[zoneID] ?? [CKRecord]()
+                        // append the item
+                        existingItems.append(ckrecord)
+                        // replace back into `data`
+                        recordsByZoneID[zoneID] = existingItems
+                    }
+                    
+                    recordsByZoneID.forEach { (zoneID, records) in
+                        let adapter = self.modelAdapterDictionary[zoneID]
+                        adapter?.saveChanges(in: records)
+                    }
+                    completion(nil)
+                }
+            }
+            database.add(fetchRecordsOperation)
+        }
+        else
+        {
+            completion(nil)
         }
     }
     
