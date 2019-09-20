@@ -156,6 +156,14 @@ public extension Notification.Name {
     func share(for object: AnyObject) -> CKShare?
     
     /**
+     *  Returns CKShare asynchronously for the given model object, if one exists.
+     *
+     *  @param object Model object.
+     */
+    @available(iOS 10.0, OSX 10.12, *)
+    func share(for object: AnyObject, completion: @escaping (CKShare?, Error?)->())
+
+    /**
      *  Store CKShare for given model object.
      *
      *  @param share CKShare object to save.

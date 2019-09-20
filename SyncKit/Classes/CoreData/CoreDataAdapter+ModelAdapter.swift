@@ -303,7 +303,23 @@ extension CoreDataAdapter: ModelAdapter {
         }
         return record
     }
-    
+
+    @available(iOS 10.0, OSX 10.12, *)
+    public func share(for object: AnyObject, completion: @escaping (CKShare?, Error?)->()) {
+        guard let object = object as? IdentifiableManagedObject else {
+            completion(nil, nil)
+            return
+        }
+        let objectIdentifier = threadSafePrimaryKeyValue(for: object)
+        var record: CKShare?
+        privateContext.perform {
+            if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
+                record = self.storedShare(for: entity)
+            }
+            completion(record, nil)
+        }
+    }
+
     @available(iOS 10.0, OSX 10.12, *)
     public func save(share: CKShare, for object: AnyObject) {
         guard let object = object as? IdentifiableManagedObject else { return }
