@@ -332,7 +332,14 @@ extension CloudKitSynchronizer {
             fetchRecordsOperation.fetchRecordsCompletionBlock = { recordsByID, fetchRecordsError in
                     
                 let fetchedRecords = Array(recordsByID!.values)
-                debugPrint("ServerRecordChanged records downloaded: ", fetchedRecords.count)
+                if fetchedRecords.count == 0
+                {
+                    debugPrint("no records downloaded for handleServerRecordChangedError: ", serverRecordsChangedError)
+                }
+                else
+                {
+                    debugPrint("ServerRecordChanged records downloaded: ", fetchedRecords.count)
+                }
                 if let resultError = fetchRecordsError {
                     completion(resultError)
                 } else {
