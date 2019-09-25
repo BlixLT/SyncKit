@@ -398,9 +398,11 @@ extension CoreDataAdapter {
         }
         
         if let parentKey = parentKey,
-            (entityState == .new || changedKeys.contains(parentKey)),
-            let reference = record[parentKey] as? CKRecord.Reference {
+            let reference = record[parentKey] as? CKRecord.Reference,
+            (entityState == .new || changedKeys.contains(parentKey) || record.parent?.recordID != reference.recordID)
+             {
             // For the parent reference we have to use action .none though, even if we must use .deleteSelf for the attribute (see ^)
+            debugPrint("update parent for: ", record.recordID, "entityState: ", entityState, "changedKeys: ", changedKeys)
             record.parent = CKRecord.Reference(recordID: reference.recordID, action: CKRecord.Reference.Action.none)
             parentEntity = referencedEntities[parentKey] as? QSSyncedEntity
         }
