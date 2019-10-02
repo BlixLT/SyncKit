@@ -182,4 +182,6 @@ public extension Notification.Name {
     
     
     func recordsToUpdateParentRelationshipsForRoot(_ object: AnyObject) -> [CKRecord]
+    
+    func recordsToUpdateParentRelationshipsForRoot(_ object: AnyObject, completion: @escaping ([CKRecord])->()) -> ()
 }

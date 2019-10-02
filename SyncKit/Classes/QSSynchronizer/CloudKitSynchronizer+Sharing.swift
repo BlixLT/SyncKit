@@ -190,25 +190,27 @@ import CloudKit
             return
         }
         
-        let records = modelAdapter.recordsToUpdateParentRelationshipsForRoot(root)
-        
-        guard records.count > 0 else {
-                completion?(nil)
-                return
-        }
-        
-        let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
-        operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
-            
-            if operationError == nil,
-                let savedRecords = savedRecords {
-                modelAdapter.didUpload(savedRecords: savedRecords)
+        modelAdapter.recordsToUpdateParentRelationshipsForRoot(root, completion: { (records) in
+
+            guard records.count > 0 else {
+                    completion?(nil)
+                    return
             }
             
-            completion?(operationError)
-        }
-        
-        database.add(operation)
+            let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+            operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+                
+                if operationError == nil,
+                    let savedRecords = savedRecords {
+                    modelAdapter.didUpload(savedRecords: savedRecords)
+                }
+                
+                completion?(operationError)
+            }
+            
+            self.database.add(operation)
+
+        })
     }
     
     @objc func handleCKShare(_ deletedShare: CKShare, deletionInZone zoneID:CKRecordZone.ID, completion: ((Error?) -> ())?) {

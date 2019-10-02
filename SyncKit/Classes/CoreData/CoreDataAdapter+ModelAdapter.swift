@@ -358,4 +358,19 @@ extension CoreDataAdapter: ModelAdapter {
         }
         return records ?? []
     }
+    
+    public func recordsToUpdateParentRelationshipsForRoot(_ object: AnyObject, completion: @escaping ([CKRecord])->()) -> () {
+        guard let object = object as? IdentifiableManagedObject else {
+            completion([])
+            return
+        }
+        let objectIdentifier = threadSafePrimaryKeyValue(for: object)
+        var records: [CKRecord]!
+        privateContext.perform {
+            if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
+                records = self.childrenRecords(for: entity)
+            }
+            completion(records ?? [])
+        }
+    }
 }
