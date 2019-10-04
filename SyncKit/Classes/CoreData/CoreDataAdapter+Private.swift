@@ -58,6 +58,17 @@ extension CoreDataAdapter {
         return SyncedEntityState(rawValue: state.rawValue + 1)!
     }
     
+    func shouldIgnoreRelationship(key: String) -> Bool {
+        if self.isShared()
+        {
+            if key == "folder"
+            {
+                return true
+            }
+        }
+        return false
+    }
+    
     func shouldIgnore(key: String) -> Bool {
         if key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key) || key == "ckOwnerName"
         {
@@ -318,8 +329,7 @@ extension CoreDataAdapter {
             let primaryKey = self.identifierFieldName(forEntity: entityType)
             // Add attributes
             entityDescription.attributesByName.forEach({ (attributeName, attributeDescription) in
-                if attributeName != primaryKey &&
-                    attributeName != "ckOwnerName" &&
+                if attributeName != primaryKey && !self.shouldIgnore(key: attributeName) &&
                     (entityState == .new || changedKeys.contains(attributeName)) {
                     let value = originalObject.value(forKey: attributeName)
                     if attributeDescription.attributeType == .binaryDataAttributeType && !self.forceDataTypeInsteadOfAsset,
@@ -339,7 +349,7 @@ extension CoreDataAdapter {
             
             // to trigger CKRecord's setValue: forKey: for nil x-to-one relationships. Otherwise this field for CKRecord is not being updates
             entityDescription.relationshipsByName.forEach({ (relationshipName, relationshipDescription) in
-                if (entityState == .new || changedKeys.contains(relationshipName))
+                if ((entityState == .new || changedKeys.contains(relationshipName)) && !self.shouldIgnoreRelationship(key: relationshipName))
                 {
                     let value = originalObject.value(forKey: relationshipName)
                     if (value == nil && !relationshipDescription.isToMany)
@@ -364,7 +374,7 @@ extension CoreDataAdapter {
         let referencedEntities = referencedSyncedEntitiesByReferenceName(for: originalObject, context: context)
 
         referencedEntities.forEach { (relationshipName, entityOrSet) in
-            if entityState == .new || changedKeys.contains(relationshipName) {
+            if (entityState == .new || changedKeys.contains(relationshipName)) && !self.shouldIgnoreRelationship(key: relationshipName) {
                 if (entityOrSet is NSSet)
                 {
                     let entitySet = entityOrSet as! NSSet
@@ -650,23 +660,26 @@ extension CoreDataAdapter {
     
     func saveRelationshipChanges(record: CKRecord, names: [String], entity: QSSyncedEntity) {
         for key in names {
-            if let reference = record[key] as? CKRecord.Reference {
-                let relationship = QSPendingRelationship(entity: NSEntityDescription.entity(forEntityName: "QSPendingRelationship", in: privateContext)!,
-                                                         insertInto: privateContext)
-                relationship.relationshipName = key
-                relationship.targetIdentifier = reference.recordID.recordName
-                relationship.forEntity = entity
-            }
-            else if let reference = record[key] as? [CKRecord.Reference] {
-                let targetIdentifiers = NSMutableArray()
-                reference.forEach {
-                    targetIdentifiers.add($0.recordID.recordName)
+            if !self.shouldIgnoreRelationship(key: key)
+            {
+                if let reference = record[key] as? CKRecord.Reference {
+                    let relationship = QSPendingRelationship(entity: NSEntityDescription.entity(forEntityName: "QSPendingRelationship", in: privateContext)!,
+                                                             insertInto: privateContext)
+                    relationship.relationshipName = key
+                    relationship.targetIdentifier = reference.recordID.recordName
+                    relationship.forEntity = entity
                 }
-                let relationship = QSPendingRelationship(entity: NSEntityDescription.entity(forEntityName: "QSPendingRelationship", in: self.privateContext)!,
-                                                         insertInto: self.privateContext)
-                relationship.relationshipName = key
-                relationship.targetIdentifier = targetIdentifiers.componentsJoined(by:",")
-                relationship.forEntity = entity
+                else if let reference = record[key] as? [CKRecord.Reference] {
+                    let targetIdentifiers = NSMutableArray()
+                    reference.forEach {
+                        targetIdentifiers.add($0.recordID.recordName)
+                    }
+                    let relationship = QSPendingRelationship(entity: NSEntityDescription.entity(forEntityName: "QSPendingRelationship", in: self.privateContext)!,
+                                                             insertInto: self.privateContext)
+                    relationship.relationshipName = key
+                    relationship.targetIdentifier = targetIdentifiers.componentsJoined(by:",")
+                    relationship.forEntity = entity
+                }
             }
         }
     }
