@@ -14,12 +14,14 @@ import CoreData
     @objc public let zoneID: CKRecordZone.ID
     @objc public let managedObjectContext: NSManagedObjectContext
     @objc public let appGroup: String?
+    @objc public let isSandbox: Bool
     @objc public private(set) var adapter: CoreDataAdapter!
     
-    @objc public init(managedObjectContext: NSManagedObjectContext, zoneID: CKRecordZone.ID, appGroup: String? = nil) {
+    @objc public init(managedObjectContext: NSManagedObjectContext, zoneID: CKRecordZone.ID, appGroup: String? = nil, isSandbox: Bool = false) {
         self.managedObjectContext = managedObjectContext
         self.zoneID = zoneID
         self.appGroup = appGroup
+        self.isSandbox = isSandbox
         super.init()
         adapter = createAdapter()
     }
@@ -49,7 +51,7 @@ import CoreData
         let delegate = DefaultCoreDataAdapterDelegate.shared
         let stack = CoreDataStack(storeType: NSSQLiteStoreType,
                                   model: CoreDataAdapter.persistenceModel,
-                                  storeURL: DefaultCoreDataAdapterProvider.storeURL(appGroup: appGroup))
+                                  storeURL: DefaultCoreDataAdapterProvider.storeURL(appGroup: appGroup, isSandbox: isSandbox))
         
         return CoreDataAdapter(persistenceStack: stack, targetContext: managedObjectContext, recordZoneID: zoneID, delegate: delegate)
     }
@@ -65,8 +67,8 @@ import CoreData
      *  @return File path, in the shared container, where SyncKit will store its tracking database.
      */
     
-    public static func storeURL(appGroup: String?) -> URL {
-        return applicationStoresPath(appGroup: appGroup).appendingPathComponent(storeFileName())
+    public static func storeURL(appGroup: String?, isSandbox:Bool) -> URL {
+        return applicationStoresPath(appGroup: appGroup, isSandbox: isSandbox).appendingPathComponent(storeFileName())
     }
     
     private static func applicationDocumentsDirectory() -> URL {
@@ -85,8 +87,9 @@ import CoreData
         return applicationDocumentsDirectory()
     }
     
-    private static func applicationStoresPath(appGroup: String?) -> URL {
-        return DefaultCoreDataAdapterProvider.applicationDocumentsDirectory(appGroup: appGroup).appendingPathComponent("Stores")
+    private static func applicationStoresPath(appGroup: String?, isSandbox:Bool) -> URL {
+        let storeFolderName = isSandbox ? "StoresSandbox" : "Stores"
+        return DefaultCoreDataAdapterProvider.applicationDocumentsDirectory(appGroup: appGroup).appendingPathComponent(storeFolderName)
     }
     
     private static func storeFileName() -> String {
