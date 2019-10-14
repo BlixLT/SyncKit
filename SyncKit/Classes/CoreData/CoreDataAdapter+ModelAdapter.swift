@@ -74,8 +74,8 @@ extension CoreDataAdapter: ModelAdapter {
             self.targetImportContext.performAndWait {
                 debugPrint("Applying attribute changes in records")
                 for entityType in queryByEntityType.keys {
-                    var queries = queryByEntityType[entityType]!
-                    var objects = self.managedObjects(entityName: entityType, identifiers: Array(queries.keys), context: self.targetImportContext)
+                    guard let queries = queryByEntityType[entityType] else { continue }
+                    let objects = self.managedObjects(entityName: entityType, identifiers: Array(queries.keys), context: self.targetImportContext)
                     
                     if objects.count < Array(queries.keys).count && self.isShared() {
                         // it is possible that some parent(s) were deleted/moved to not shared account and because of cascade deletion rule children were deleted (during context save/merging changes after import), but this deletion was not registered by synckit
@@ -93,8 +93,9 @@ extension CoreDataAdapter: ModelAdapter {
                         objects = self.managedObjects(entityName: entityType, identifiers: Array(queries.keys), context: self.targetImportContext)
                     }
                     for object in objects {
-                        guard let query = queries[self.uniqueIdentifier(for: object)],
-                        let record = query.record else { continue }
+                        guard let identifier = self.uniqueIdentifier(for: object),
+                            let query = queries[identifier],
+                            let record = query.record else { continue }
                         self.applyAttributeChanges(record: record,
                                                    to: object,
                                                    state: query.state,
@@ -273,6 +274,7 @@ extension CoreDataAdapter: ModelAdapter {
     }
     
     public func deleteChangeTracking() {
+        NotificationCenter.default.removeObserver(self)
         stack.deleteStore()
         privateContext = nil
         clearImportContext()
