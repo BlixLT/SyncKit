@@ -101,7 +101,7 @@ extension CoreDataAdapter {
             }
             let allUpdateObjectIDs = updated?.compactMap { self.uniqueIdentifier(for: $0) } ?? []
             
-            var deletedIDs = deleted?.conpactMap { self.uniqueIdentifier(for: $0) } ?? []
+            var deletedIDs = deleted?.compactMap { self.uniqueIdentifier(for: $0) } ?? []
 
             privateContext.perform {
                 // get trackedObjectIDs
@@ -114,7 +114,7 @@ extension CoreDataAdapter {
                     updated?.forEach {
                         if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
                         {
-                            if trackedObjectIDs.contains(self.uniqueIdentifier(for: $0))
+                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
                             {
                                 updatedMutable.add($0)
                             }
@@ -125,9 +125,9 @@ extension CoreDataAdapter {
                         }
                         else
                         {
-                            if trackedObjectIDs.contains(self.uniqueIdentifier(for: $0))
+                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
                             {
-                                deletedIDs.append(self.uniqueIdentifier(for: $0))
+                                deletedIDs.append(identifier)
                             }
                         }
                     }
@@ -137,7 +137,7 @@ extension CoreDataAdapter {
                     var insertedIdentifiersAndEntityNames = [String: String]()
                     inserted?.forEach {
                         if let entityName = $0.entity.name,
-                            let identifier = uniqueIdentifier(for: $0) {
+                            let identifier = self.uniqueIdentifier(for: $0) {
                             insertedIdentifiersAndEntityNames[identifier] = entityName
                         }
                     }
@@ -222,8 +222,8 @@ extension CoreDataAdapter {
                 if ($0.changedValuesForCurrentEvent().keys.contains(primaryKey))
                 {
                     let oldIdentifier = $0.committedValues(forKeys:[primaryKey])[primaryKey] as! String
-                    let identifier = self.uniqueIdentifier(for:$0)
-                    if (oldIdentifier.count > 0 && identifier.count > 0)
+                    if let identifier = self.uniqueIdentifier(for:$0),
+                        (oldIdentifier.count > 0 && identifier.count > 0)
                     {
                         debugPrint("oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
                         self.privateContext.perform {

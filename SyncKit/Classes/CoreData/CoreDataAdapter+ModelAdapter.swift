@@ -75,7 +75,7 @@ extension CoreDataAdapter: ModelAdapter {
                 debugPrint("Applying attribute changes in records")
                 for entityType in queryByEntityType.keys {
                     guard let queries = queryByEntityType[entityType] else { continue }
-                    let objects = self.managedObjects(entityName: entityType, identifiers: Array(queries.keys), context: self.targetImportContext)
+                    var objects = self.managedObjects(entityName: entityType, identifiers: Array(queries.keys), context: self.targetImportContext)
                     
                     if objects.count < Array(queries.keys).count && self.isShared() {
                         // it is possible that some parent(s) were deleted/moved to not shared account and because of cascade deletion rule children were deleted (during context save/merging changes after import), but this deletion was not registered by synckit
