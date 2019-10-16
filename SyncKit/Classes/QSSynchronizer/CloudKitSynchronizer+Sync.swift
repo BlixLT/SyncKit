@@ -231,8 +231,16 @@ extension CloudKitSynchronizer {
                 for (zoneID, result) in zoneResults {
                     let adapter = self.modelAdapterDictionary[zoneID]
                     if let resultError = result.error {
-                        error = resultError
-                        break
+                        if self.isZoneNotFoundOrDeletedError(resultError)
+                        {
+                            debugPrint("QSCloudKitSynchronizer.fetchZoneChanges >> got zone not found error")
+                            self.notifyProviderForDeletedZoneIDs([zoneID])
+                        }
+                        else
+                        {
+                            error = resultError
+                            break
+                        }
                     } else {
                         debugPrint("QSCloudKitSynchronizer >> Downloaded \(result.downloadedRecords.count) changed records >> from zone \(zoneID.description)")
                         debugPrint("QSCloudKitSynchronizer >> Downloaded \(result.deletedRecordIDs.count) deleted record IDs >> from zone \(zoneID.description)")
