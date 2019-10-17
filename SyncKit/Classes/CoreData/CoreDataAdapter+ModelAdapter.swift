@@ -38,6 +38,7 @@ extension CoreDataAdapter: ModelAdapter {
             var queryByEntityType = [String: [String: QueryData]]()
             for record in records {
                 var syncedEntity: QSSyncedEntity! = entitiesById[record.recordID.recordName]
+                debugPrint("Save changes in record: ", record.recordID.recordName)
                 if syncedEntity == nil {
                     if #available(iOS 10.0, *),
                         let share = record as? CKShare {

@@ -747,8 +747,12 @@ extension CoreDataAdapter {
             
             if identifiers.count <= 1
             {
-                if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: pendingRelationship.targetIdentifier!) {
+                if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: targetIdentierString) {
                     relationships[pendingRelationship.relationshipName!] = targetObjectInfo
+                }
+                else
+                {
+                    debugPrint("originObjectIdentifier not found for entity with identifier: ", targetIdentierString)
                 }
             }
             else
@@ -757,6 +761,10 @@ extension CoreDataAdapter {
                 identifiers.forEach {
                     if let targetObjectInfo = originObjectIdentifier(forEntityWithIdentifier: $0) {
                         targetObjectInfos.add(targetObjectInfo)
+                    }
+                    else
+                    {
+                        debugPrint("originObjectIdentifier not found for entity with identifier: ", $0)
                     }
                 }
                 relationships[pendingRelationship.relationshipName!] = targetObjectInfos
@@ -840,6 +848,9 @@ extension CoreDataAdapter {
                             let targetManagedObject = self.managedObject(entityName: entityType,
                                                                          identifier: originObjectID,
                                                                          context: context)
+                            if targetManagedObject == nil {
+                                debugPrint("relationship object not found for key: ", relationshipName, ", with identifier: ", originObjectID, " for managedObject entityName : ", managedObject.entity.name ?? "n/a")
+                            }
                             managedObject.setValue(targetManagedObject, forKey: relationshipName)
                         } else if self.mergePolicy == .custom,
                             let entityType = target.entityType,
@@ -852,6 +863,10 @@ extension CoreDataAdapter {
                             conflictDelegate.coreDataAdapter(self,
                                                              gotChanges: [relationshipName: targetManagedObject],
                                                              for: managedObject)
+                        }
+                        else
+                        {
+                            debugPrint(".custom relationship object not found for key: ", relationshipName, ", with identifier: ", target.originObjectID ?? "n/a", " for managedObject entityName : ", managedObject.entity.name ?? "n/a")
                         }
                     }
                     else if targetOrArray is NSArray
@@ -868,6 +883,10 @@ extension CoreDataAdapter {
                             if targetManagedObject != nil
                             {
                                 targetObjectsOrdered.add(targetManagedObject!)
+                            }
+                            else
+                            {
+                                debugPrint("relationship object not found for key: ", relationshipName, "with identifier: ", originObjectID , "for managedObject entityName : ", managedObject.entity.name ?? "n/a")
                             }
                         }
                         if (isOrdered)
