@@ -1013,16 +1013,19 @@ extension CoreDataAdapter {
         }
         let entitiesByName = self.targetImportContext.persistentStoreCoordinator?.managedObjectModel.entitiesByName
         var entityNamesSorted = [String]()
-        entitiesByName?.forEach { (entityName, entityDescription) in
+        for (entityName) in Array<String>(entitiesByName!.keys).sorted() {
             if (!entityNamesSorted.contains(entityName))
             {
                 entityNamesSorted.append(entityName)
             }
-            entityDescription.relationshipsByName.forEach { (relationshipName, relationshipDescription) in
-                let destinationEntityName = relationshipDescription.destinationEntity!.name
+            let entityDescription = entitiesByName![entityName]
+            for (relationshipName) in Array<String>( entityDescription!.relationshipsByName.keys).sorted() {
+                let relationshipDescription = entityDescription!.relationshipsByName[relationshipName]
+
+                let destinationEntityName = relationshipDescription!.destinationEntity!.name
                 if (destinationEntityName != entityName)
                 {
-                    if isOneToManyRelationship(relationshipDescription)
+                    if isOneToManyRelationship(relationshipDescription!)
                     {
                         let destinationEntityIndex = entityNamesSorted.firstIndex(of: destinationEntityName!)
                         var sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
@@ -1037,7 +1040,7 @@ extension CoreDataAdapter {
                             entityNamesSorted.insert(destinationEntityName!, at:sourceEntityIndex!+1)
                         }
                     }
-                    else if isManyToOneRelationship(relationshipDescription)
+                    else if isManyToOneRelationship(relationshipDescription!)
                     {
                         let destinationEntityIndex = entityNamesSorted.firstIndex(of: destinationEntityName!)
                         var sourceEntityIndex = entityNamesSorted.firstIndex(of: entityName)
@@ -1058,7 +1061,7 @@ extension CoreDataAdapter {
         
         if let index = entityNamesSorted.firstIndex(of: self.extraDataEntityName()) {
             entityNamesSorted.remove(at: index)
-            entityNamesSorted.append(self.extraDataEntityName())
+            entityNamesSorted.insert(self.extraDataEntityName(), at:0)
         }
         return entityNamesSorted
     }
