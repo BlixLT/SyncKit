@@ -291,6 +291,7 @@ extension CoreDataAdapter {
                     let record = self.recordToUpload(for: entity, context: self.targetContext, parentEntity: &parentEntity)
                     if (record != nil)
                     {
+                        debugPrint("recordToUpload: ", record!.recordID.recordName)
                         recordsArray.append(record!)
                         includedEntityIDs.insert(entity.identifier!)
                         entity = parentEntity
@@ -994,6 +995,7 @@ extension CoreDataAdapter {
     func sortedEntities(entities: [QSSyncedEntity]) -> [QSSyncedEntity]
     {
         let entityNamesSorted = self.entityNamesSorted()
+        debugPrint("entityNamesSorted: ", entityNamesSorted)
         let sortedEntitiesMutable = NSMutableArray(array:entities)
         entityNamesSorted.forEach {
             let predicate = NSPredicate(format: "entityType = %@", $0)
