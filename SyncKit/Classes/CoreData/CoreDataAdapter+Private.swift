@@ -279,7 +279,7 @@ extension CoreDataAdapter {
         var recordsArray = [CKRecord]()
         privateContext.performAndWait {
             let entities = sortedEntities(entities:fetchEntities(state: state))
-            var pending = entities
+            var pending : [QSSyncedEntity] = Array(entities.reversed()) // loop takes objects from the back, therefore we need reversed array here
             var includedEntityIDs = Set<String>()
             while recordsArray.count < limit && !pending.isEmpty {
                 var entity: QSSyncedEntity! = pending.last
