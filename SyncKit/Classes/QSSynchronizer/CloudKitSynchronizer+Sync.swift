@@ -550,6 +550,7 @@ extension CloudKitSynchronizer {
                         debugPrint("needsToRefetch")
                         needsToRefetch = true
                     } else {
+                        self.activeZoneTokens[zoneID] = result.serverChangeToken
                         adapter?.saveToken(result.serverChangeToken)
                     }
                     if result.moreComing {
