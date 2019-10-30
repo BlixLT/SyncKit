@@ -376,13 +376,13 @@ extension CoreDataAdapter {
         
         let referencedEntities = referencedSyncedEntitiesByReferenceName(for: originalObject, context: context)
 
-        referencedEntities.forEach { (relationshipName, entityOrSet) in
+        referencedEntities.forEach { (relationshipName, entityOrArray) in
             if (entityState == .new || changedKeys.contains(relationshipName)) && !self.shouldIgnoreRelationship(key: relationshipName) {
-                if (entityOrSet is NSSet)
+                if (entityOrArray is NSArray)
                 {
-                    let entitySet = entityOrSet as! NSSet
+                    let entityArray = entityOrArray as! NSArray
                     let references = NSMutableArray()
-                    entitySet.forEach {
+                    entityArray.forEach {
                         let entity = $0 as! QSSyncedEntity
                         let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
                         let recordReference = CKRecord.Reference(recordID: recordID, action: .none)
@@ -399,7 +399,7 @@ extension CoreDataAdapter {
                 }
                 else
                 {
-                    let entity = entityOrSet as! QSSyncedEntity
+                    let entity = entityOrArray as! QSSyncedEntity
                     let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
                     // if we set the parent we must make the action .deleteSelf, otherwise we get errors if we ever try to delete the parent record
                     // with deleteSelf sharable children count is 750, with .none - much bigger (?). We just need to handle correct deletions upload order to avoid reference violation errors.
@@ -446,9 +446,9 @@ extension CoreDataAdapter {
         
         var entitiesByName = [String: Any]()
         objectIDsByRelationshipName.forEach { (relationshipName, identifierOrSet) in
-            if identifierOrSet is NSSet {
-                let identifiersSet = identifierOrSet as! NSSet
-                let entities = NSMutableSet()
+            if identifierOrSet is NSArray {
+                let identifiersSet = identifierOrSet as! NSArray
+                let entities = NSMutableArray()
                 identifiersSet.forEach {
                     if let entity = self.syncedEntity(withOriginIdentifier: $0 as! String) {
                         entities.add(entity)
@@ -476,7 +476,18 @@ extension CoreDataAdapter {
             }
             else if relationshipDescription.inverseRelationship!.isToMany,
                             let referencedObjects = object.value(forKey: name) as? NSSet {
-                let identifiers = NSMutableSet()
+                // many-to-many NSSet
+                let identifiers = NSMutableArray()
+                referencedObjects.forEach {
+                    let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
+                    identifiers.add(identifier)
+                }
+                objectIDs[relationshipDescription.name] = identifiers
+            }
+            else if relationshipDescription.inverseRelationship!.isToMany,
+                            let referencedObjects = object.value(forKey: name) as? NSOrderedSet {
+                // many-to-many NSOrderedSet
+                let identifiers = NSMutableArray()
                 referencedObjects.forEach {
                     let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
                     identifiers.add(identifier)
