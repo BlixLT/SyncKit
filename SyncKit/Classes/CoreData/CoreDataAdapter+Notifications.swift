@@ -187,6 +187,38 @@ extension CoreDataAdapter {
         }
     }
     
+    @objc func mncContextNeedsUIRefresh(notification: Notification) {
+        
+        // convet NSManagedObjectIDs to NSManagedObjects
+        let insertedObjectIDs = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObjectID>
+        let insertedMutable = NSMutableSet()
+        insertedObjectIDs?.forEach({ (objectID) in
+            let managedObject = self.targetContext.object(with:objectID)
+            insertedMutable.add(managedObject)
+        })
+        let inserted = insertedMutable as! Set<NSManagedObject>
+
+        let updatedObjectIDs = notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObjectID>
+        let updatedMutable = NSMutableSet()
+        updatedObjectIDs?.forEach({ (objectID) in
+            let managedObject = self.targetContext.object(with:objectID)
+            updatedMutable.add(managedObject)
+        })
+        let updated = updatedMutable as! Set<NSManagedObject>
+        
+        let deletedObjectIDs = notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObjectID>
+        let deletedMutable = NSMutableSet()
+        deletedObjectIDs?.forEach({ (objectID) in
+            let managedObject = self.targetContext.object(with:objectID)
+            deletedMutable.add(managedObject)
+        })
+        let deleted = deletedMutable as! Set<NSManagedObject>
+
+        let notificationWithObjects = Notification(name: .NSManagedObjectContextDidSave, object: notification.object, userInfo: [NSInsertedObjectsKey : inserted, NSUpdatedObjectsKey : updated, NSDeletedObjectsKey : deleted])
+        
+        self.targetContextDidSave(notification: notificationWithObjects)
+    }
+
     // MARK: sharing
     @objc func targetContextObjectsDidChange(notification: Notification) {
         if isMergingImportedChanges

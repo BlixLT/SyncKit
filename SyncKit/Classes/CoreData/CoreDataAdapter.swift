@@ -82,6 +82,10 @@ import CloudKit
                                                name: .NSManagedObjectContextDidSave,
                                                object: targetContext)
         NotificationCenter.default.addObserver(self,
+                                               selector: #selector(mncContextNeedsUIRefresh(notification:)),
+                                               name: NSNotification.Name(rawValue: "MNCContextNeedsUIRefreshNotification"),
+                                               object: targetContext)
+        NotificationCenter.default.addObserver(self,
                                                selector: #selector(targetContextObjectsDidChange(notification:)),
                                                name: .NSManagedObjectContextObjectsDidChange,
                                                object: targetContext)
