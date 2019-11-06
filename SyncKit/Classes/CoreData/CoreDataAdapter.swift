@@ -93,6 +93,7 @@ import CloudKit
         setupPrimaryKeysLookup()
         setupChildrenRelationshipsLookup()
         performInitialSetupIfNeeded()
+        updateTrackingForObjectsWithPrimaryKey()
     }
     
     // MARK: - Private

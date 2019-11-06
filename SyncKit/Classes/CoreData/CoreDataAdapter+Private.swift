@@ -132,6 +132,55 @@ extension CoreDataAdapter {
         let index = name.index(name.startIndex, offsetBy: entityType.count + 1)
         return String(name[index...])
     }
+    
+    public func updateTrackingForObjectsWithPrimaryKey()
+    {
+        if self.isShared()
+        {
+            return
+        }
+        debugPrint("updateTrackingForObjectsWithPrimaryKey()")
+        self.privateContext.perform {
+            let noPrimaryKeyTrackingEntities = try? self.privateContext.executeFetchRequest(entityName: "QSSyncedEntity",
+                                                                       predicate: NSPredicate(format: "originObjectID beginswith[cd] %@", "x-coredata://"),
+                                                                       fetchLimit: 0) as? [QSSyncedEntity]
+            if noPrimaryKeyTrackingEntities!.count > 0
+            {
+                debugPrint("needs fix: ", noPrimaryKeyTrackingEntities!.count)
+                noPrimaryKeyTrackingEntities?.forEach({ (syncedEntity) in
+                    let entityName = syncedEntity.entityType
+                    let oldOriginObjectID = syncedEntity.originObjectID!
+                    self.targetContext.perform {
+                        if let objectID = self.targetContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation:URL(string: oldOriginObjectID)!)
+                        {
+                            let managedObject = self.targetContext.object(with: objectID)
+                            let newIdentifier = self.uniqueIdentifier(for: managedObject)
+                            self.privateContext.perform {
+
+                                let syncedEntityWithNewIdentifier = self.syncedEntity(withOriginIdentifier: newIdentifier!)
+                                if syncedEntityWithNewIdentifier == nil
+                                {
+                                    debugPrint("will fix ", oldOriginObjectID, " -> ", newIdentifier)
+                                    syncedEntity.originObjectID = newIdentifier
+                                    self.savePrivateContext()
+                                }
+                                else
+                                {
+                                    debugPrint("cannot fix ", oldOriginObjectID, " -> ", newIdentifier, "(newIdentifier already being tracked)")
+                                }
+                            }
+                        }
+                        else
+                        {
+                            debugPrint("cannot find object with id: ", syncedEntity.originObjectID)
+                        }
+                    }
+                    
+                })
+                self.savePrivateContext()
+            }
+        }
+    }
 }
 
 //MARK: - Entities
