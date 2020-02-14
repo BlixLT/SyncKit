@@ -194,15 +194,15 @@ import CloudKit
         modelAdapter.recordsToUpdateParentRelationshipsForRoot(root, completion: { (records) in
 
             guard records.count > 0 else {
-                    completion?(nil)
+                completion(nil)
                     return
             }
             
-            let chunks = stride(from: 0, to: records.count, by: batchSize).map {
-                Array(records[$0..<Swift.min($0 + batchSize, records.count)])
+            let chunks = stride(from: 0, to: records.count, by: self.batchSize).map {
+                Array(records[$0..<Swift.min($0 + self.batchSize, records.count)])
             }
 
-            sequential(objects: chunks,
+            self.sequential(objects: chunks,
                        closure: { (records, uploadCompletion) in
 
                         let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
