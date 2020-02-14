@@ -184,10 +184,10 @@ import CloudKit
      - root The root model object.
      - completion Closure that gets called on completion.
      */
-    @objc func reuploadRecordsForChildrenOf(root: AnyObject, completion: ((Error?) -> ())?) {
+    @objc func reuploadRecordsForChildrenOf(root: AnyObject, completion: @escaping ((Error?) -> ())) {
         
         guard let modelAdapter = modelAdapter(for: root) else {
-            completion?(nil)
+            completion(nil)
             return
         }
         
@@ -198,22 +198,38 @@ import CloudKit
                     return
             }
             
-            let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
-            operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
-                
-                if operationError == nil,
-                    let savedRecords = savedRecords {
-                    modelAdapter.didUpload(savedRecords: savedRecords)
-                }
-                
-                completion?(operationError)
+            let chunks = stride(from: 0, to: records.count, by: batchSize).map {
+                Array(records[$0..<Swift.min($0 + batchSize, records.count)])
             }
-            
-            self.database.add(operation)
+
+            sequential(objects: chunks,
+                       closure: { (records, uploadCompletion) in
+
+                        let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+                        operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+                
+                        if operationError == nil,
+                            let savedRecords = savedRecords {
+                            modelAdapter.didUpload(savedRecords: savedRecords)
+                        }
+
+                        if let error = operationError {
+                            if self.isLimitExceededError(error as NSError) {
+                                self.batchSize = self.batchSize / 2
+                            }
+                            completion(error)
+                        }
+
+                        uploadCompletion(operationError)
+                    }
+                    self.currentOperation = operation
+                    self.database.add(operation)
+            },
+            final: completion)
 
         })
     }
-    
+
     @objc func handleCKShare(_ deletedShare: CKShare, deletionInZone zoneID:CKRecordZone.ID, completion: ((Error?) -> ())?) {
         if self.database.databaseScope == .private
         {
