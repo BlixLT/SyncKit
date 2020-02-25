@@ -67,7 +67,7 @@ import CoreData
      *  @return File path, in the shared container, where SyncKit will store its tracking database.
      */
     
-    public static func storeURL(appGroup: String?, isSandbox:Bool) -> URL {
+    @objc public static func storeURL(appGroup: String?, isSandbox:Bool) -> URL {
         return applicationStoresPath(appGroup: appGroup, isSandbox: isSandbox).appendingPathComponent(storeFileName())
     }
     
