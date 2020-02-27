@@ -287,6 +287,12 @@ extension CoreDataAdapter {
     
     @objc public func sharesByPrimaryKeysForObjects(_ objects:[NSObject], completion: ((NSDictionary?) -> ())?)
     {
+        if self.privateContext == nil
+        {
+            // adapter was/will be deleted/reset
+            completion!(NSDictionary());
+            return
+        }
         self.privateContext.perform {
             
             var dictionary = NSDictionary()
