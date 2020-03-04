@@ -44,7 +44,7 @@ extension CloudKitSynchronizer {
             self.completion?(error)
             self.completion = nil
             
-            debugPrint("QSCloudKitSynchronizer >> Finishing synchronization")
+            debugPrint("QSCloudKitSynchronizer >> Finishing synchronization:", self)
         }
     }
 }
@@ -166,7 +166,7 @@ extension CloudKitSynchronizer {
 extension CloudKitSynchronizer {
     
     func fetchChanges() {
-        debugPrint("fetchChanges")
+        debugPrint("fetchChanges: ", self)
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -191,7 +191,9 @@ extension CloudKitSynchronizer {
     
     func fetchDatabaseChanges(completion: @escaping (CKServerChangeToken?, Error?) -> ()) {
         
+        debugPrint("fetchDatabaseChanges: ", self)
         let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (token, changedZoneIDs, deletedZoneIDs) in
+            debugPrint("fetchDatabaseChanges.completion: ", self)
             self.dispatchQueue.async {
                 self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
                 
@@ -221,9 +223,10 @@ extension CloudKitSynchronizer {
     }
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
+        debugPrint("fetchZoneChanges: ", self)
         let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: nil) { (zoneResults) in
             
-            debugPrint("fetchZoneChanges")
+            debugPrint("fetchZoneChanges.completion: ", self)
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var error: Error? = nil
@@ -254,6 +257,7 @@ extension CloudKitSynchronizer {
                 }
                 
                 if pendingZones.count > 0 && error == nil {
+                    debugPrint("fetchZoneChanges.pendingZones.count > 0:", self)
                     self.fetchZoneChanges(pendingZones, completion: completion)
                 } else {
                     completion(error)
@@ -264,7 +268,7 @@ extension CloudKitSynchronizer {
     }
     
     func mergeChanges(completion: @escaping (Error?)->()) {
-        debugPrint("mergeChanges")
+        debugPrint("mergeChanges:", self)
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return

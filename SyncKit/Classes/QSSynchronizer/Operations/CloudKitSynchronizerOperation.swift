@@ -46,6 +46,7 @@ public class CloudKitSynchronizerOperation: Operation {
     
     public func finish(error: Error?) {
         if let error = error {
+            debugPrint("CloudKitSynchronizerOperation.finish:", self)
             errorHandler?(self, error)
         }
         state = .finished

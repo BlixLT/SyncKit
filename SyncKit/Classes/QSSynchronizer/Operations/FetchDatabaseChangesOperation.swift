@@ -23,24 +23,29 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         self.database = database
         self.completion = completion
         super.init()
+        debugPrint("FetchDatabaseChangesOperation:", self)
     }
     
     override public func start() {
+        debugPrint("FetchDatabaseChangesOperation.start:", self)
         super.start()
 
         let databaseChangesOperation = CKFetchDatabaseChangesOperation(previousServerChangeToken: databaseToken)
         databaseChangesOperation.fetchAllChanges = true
 
         databaseChangesOperation.recordZoneWithIDChangedBlock = { zoneID in
+            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDChangedBlock:", self)
             self.changedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.recordZoneWithIDWasDeletedBlock = { zoneID in
+            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDWasDeletedBlock:", self)
             self.deletedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.fetchDatabaseChangesCompletionBlock = { serverChangeToken, moreComing, operationError in
 
+            debugPrint("FetchDatabaseChangesOperation.fetchDatabaseChangesCompletionBlock:", self, ", more coming:", moreComing)
             if !moreComing {
                 if operationError == nil {
                     self.completion(serverChangeToken, self.changedZoneIDs, self.deletedZoneIDs)
@@ -50,11 +55,14 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
             }
         }
 
+        debugPrint("FetchDatabaseChangesOperation.will addOperation:", self)
+
         internalOperation = databaseChangesOperation
         database.add(databaseChangesOperation)
     }
     
     override public func cancel() {
+        debugPrint("FetchDatabaseChangesOperation.cancel")
         internalOperation?.cancel()
         super.cancel()
     }
