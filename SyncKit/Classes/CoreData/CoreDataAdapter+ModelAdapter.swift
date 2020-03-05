@@ -21,7 +21,7 @@ extension CoreDataAdapter: ModelAdapter {
         }
     }
     
-    public func saveChanges(in records: [CKRecord]) {
+    public func saveChanges(in records: [CKRecord], completion: @escaping (Error?)->()) {
         guard records.count > 0,
         privateContext != nil else {
             completion(nil)
