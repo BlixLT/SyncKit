@@ -232,7 +232,7 @@ extension CoreDataAdapter {
                 // fix ckOwnerName changes
                 if ($0.changedValuesForCurrentEvent().keys.contains(ckOwnerNameKey))
                 {
-                    let oldOwner = $0.committedValues(forKeys:[ckOwnerNameKey])[ckOwnerNameKey] as! String
+                    let oldOwner = $0.committedValues(forKeys:[ckOwnerNameKey])[ckOwnerNameKey] as? String ?? ""
                     if (areSharingIdentifiersEqual(oldOwner, sharedZoneOwnerName()) && !areSharingIdentifiersEqual(sharingIdentifier(for: $0), sharedZoneOwnerName()))
                     {
                         // sharing identifier did change
