@@ -253,7 +253,7 @@ extension CoreDataAdapter {
                 // fix duplicated uniqueIdentifiers
                 if ($0.changedValuesForCurrentEvent().keys.contains(primaryKey))
                 {
-                    let oldIdentifier = $0.committedValues(forKeys:[primaryKey])[primaryKey] as! String
+                    let oldIdentifier = $0.committedValues(forKeys:[primaryKey])[primaryKey] as? String ?? ""
                     if let identifier = self.uniqueIdentifier(for:$0),
                         (oldIdentifier.count > 0 && identifier.count > 0)
                     {
