@@ -82,7 +82,7 @@ public class CloudKitSynchronizer: NSObject {
         case downloadOnly
     }
     
-    @objc public static let errorDomain = "CloudKitSynchronizerErrorDomain"
+    public static let errorDomain = "CloudKitSynchronizerErrorDomain"
     public static let errorKey = "CloudKitSynchronizerErrorKey"
     
     @objc public let identifier: String
