@@ -254,7 +254,13 @@ extension CoreDataAdapter {
                                                        predicate: NSPredicate(format: "identifier IN %@", identifiers),
                                                        preload: true) as! [QSSyncedEntity]
     }
-    
+
+    func fetchEntities(originObjectIDs: [String]) -> [QSSyncedEntity] {
+        return try! privateContext.executeFetchRequest(entityName: "QSSyncedEntity",
+                                                       predicate: NSPredicate(format: "originObjectID IN %@", originObjectIDs),
+                                                       preload: true) as! [QSSyncedEntity]
+    }
+
     func delete(syncedEntities: [QSSyncedEntity]) {
         var identifiersByType = [String: [String]]()
         for syncedEntity in syncedEntities {

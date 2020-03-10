@@ -64,6 +64,7 @@ extension CoreDataAdapter {
                         changedKeys.insert(key)
                     }
                     entity.changedKeysArray = Array(changedKeys)
+                    entity.updatedDate = NSDate()
                 }
                 
                 deletedIDs.forEach { (identifier) in
@@ -89,7 +90,7 @@ extension CoreDataAdapter {
             if let object = notification.object as? NSManagedObjectContext,
                 object == targetContext && !isMergingImportedChanges {
             var inserted = notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>
-            let updated = notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>
+            var updated = notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>
             let deleted = notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject>
             
             let insertedMutable = NSMutableSet()
@@ -105,7 +106,7 @@ extension CoreDataAdapter {
 
             privateContext.perform {
                 // get trackedObjectIDs
-                let trackedObjects = self.fetchEntities(identifiers:allUpdateObjectIDs)
+                let trackedObjects = self.fetchEntities(originObjectIDs:allUpdateObjectIDs)
                 let trackedObjectIDs = trackedObjects.compactMap { $0.originObjectID }
                 
                 self.targetContext.perform {
@@ -125,10 +126,11 @@ extension CoreDataAdapter {
                         }
                         else
                         {
-                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
-                            {
-                                deletedIDs.append(identifier)
-                            }
+                            // doesnt work if there are objects from different owners with the same uniqueID, will mark them as deleted in objectsDidChange method (when owner changes)
+//                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
+//                            {
+//                                deletedIDs.append(identifier)
+//                            }
                         }
                     }
 
