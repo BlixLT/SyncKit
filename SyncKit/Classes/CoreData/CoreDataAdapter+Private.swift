@@ -998,7 +998,7 @@ extension CoreDataAdapter {
     
     func sharableEntities() -> [String]
     {
-        return ["Payee", "Category","TradableAsset", "Tag", "Currency"]
+        return ["Payee", "Category","TradableAsset", "Tag", "Currency", "Attachment", "Icon"]
     }
     
     func extraDataEntityName() -> String
