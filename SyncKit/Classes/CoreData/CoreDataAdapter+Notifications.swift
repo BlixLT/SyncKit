@@ -39,9 +39,7 @@ extension CoreDataAdapter {
                 }
             }
             
-            var deletedIDs = [String]()
-            
-            targetContext.deletedObjects.forEach {
+            let deletedIDs: [String] = targetContext.deletedObjects.compactMap {
                 if self.uniqueIdentifier(for: $0) == nil,
                     let entityName = $0.entity.name {
                     // Properties become nil when objects are deleted as a result of using an undo manager
@@ -49,9 +47,9 @@ extension CoreDataAdapter {
                     // entity for deletion
                     let identifierFieldName = self.identifierFieldName(forEntity: entityName)
                     let committedValues = $0.committedValues(forKeys: [identifierFieldName])
-                    if let identifier = committedValues[identifierFieldName] as? String {
-                        deletedIDs.append(identifier)
-                    }
+                    return committedValues[identifierFieldName] as? String
+                } else {
+                    return uniqueIdentifier(for: $0)
                 }
             }
             
@@ -64,6 +62,7 @@ extension CoreDataAdapter {
                         changedKeys.insert(key)
                     }
                     entity.changedKeysArray = Array(changedKeys)
+                    entity.entityState = .changed
                     entity.updatedDate = NSDate()
                 }
                 
@@ -73,9 +72,8 @@ extension CoreDataAdapter {
                     entity.updatedDate = NSDate()
                 }
                 
-                if !deletedIDs.isEmpty {
-                    debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
-                }
+                debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updated.count)
+                debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
                 
                 self.savePrivateContext()
             }
@@ -102,7 +100,7 @@ extension CoreDataAdapter {
             }
             let allUpdateObjectIDs = updated?.compactMap { self.uniqueIdentifier(for: $0) } ?? []
             
-            var deletedIDs = deleted?.compactMap { self.uniqueIdentifier(for: $0) } ?? []
+            let deletedCount = deleted?.count ?? 0
 
             privateContext.perform {
                 // get trackedObjectIDs
@@ -144,10 +142,8 @@ extension CoreDataAdapter {
                         }
                     }
                     
-                    let updatedIDs = updated?.compactMap { self.uniqueIdentifier(for: $0) } ?? []
-
-                    let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || !updatedIDs.isEmpty || !deletedIDs.isEmpty
-                    
+                    let updatedCount = updatedMutable.count
+                    let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || updatedCount > 0 || deletedCount > 0
                     self.privateContext.perform {
                         insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
                             let entity = self.syncedEntity(withOriginIdentifier: identifier)
@@ -156,24 +152,7 @@ extension CoreDataAdapter {
                             }
                         })
                         
-                        updatedIDs.forEach({ (identifier) in
-                            guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
-                            if entity.entityState == .synced && !entity.changedKeysArray.isEmpty {
-                                entity.entityState = .changed
-                            }
-                            entity.updatedDate = NSDate()
-                        })
-                        
-                        deletedIDs.forEach { (identifier) in
-                            guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else {
-                                return }
-                            entity.entityState = .deleted
-                            entity.updatedDate = NSDate()
-                        }
-                        
                         debugPrint("QSCloudKitSynchronizer >> Did Save >> Tracking %ld insertions", inserted?.count ?? 0)
-                        debugPrint("QSCloudKitSynchronizer >> Did Save >> Tracking %ld updates", updated?.count ?? 0)
-                        debugPrint("QSCloudKitSynchronizer >> Did Save >> Tracking %ld deletions", deleted?.count ?? 0)
 
                         self.savePrivateContext()
                         
@@ -253,20 +232,23 @@ extension CoreDataAdapter {
                 
                 let primaryKey = "uniqueIdentifier"
                 // fix duplicated uniqueIdentifiers
-                if ($0.changedValuesForCurrentEvent().keys.contains(primaryKey))
+                if (areSharingIdentifiersEqual(sharingIdentifier(for: $0), sharedZoneOwnerName()))
                 {
-                    let oldIdentifier = $0.committedValues(forKeys:[primaryKey])[primaryKey] as? String ?? ""
-                    if let identifier = self.uniqueIdentifier(for:$0),
-                        (oldIdentifier.count > 0 && identifier.count > 0)
+                    if ($0.changedValuesForCurrentEvent().keys.contains(primaryKey))
                     {
-                        debugPrint("oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
-                        self.privateContext.perform {
-                             if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier) {
-                                entity.entityState = .new
-                                entity.changedKeys = nil
-                                entity.record = nil
-                                entity.identifier = String(format:"%@.%@",entity.entityType ?? "", identifier)
-                                entity.originObjectID = identifier
+                        let oldIdentifier = $0.committedValues(forKeys:[primaryKey])[primaryKey] as? String ?? ""
+                        if let identifier = self.uniqueIdentifier(for:$0),
+                            (oldIdentifier.count > 0 && identifier.count > 0)
+                        {
+                            debugPrint("oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
+                            self.privateContext.perform {
+                                 if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier) {
+                                    entity.entityState = .new
+                                    entity.changedKeys = nil
+                                    entity.record = nil
+                                    entity.identifier = String(format:"%@.%@",entity.entityType ?? "", identifier)
+                                    entity.originObjectID = identifier
+                                }
                             }
                         }
                     }
