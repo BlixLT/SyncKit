@@ -218,7 +218,7 @@ extension CoreDataAdapter {
                     {
                         // sharing identifier did change
                         let identifierKey = identifierFieldName(forEntity: $0.entity.name!)
-                        let oldIdentifier = $0.committedValues(forKeys:[identifierKey])[identifierKey] as! String
+                        let oldIdentifier = $0.committedValues(forKeys:[identifierKey])[identifierKey] as? String ?? ""
 
                         self.privateContext.perform {
                             debugPrint("changedKeys contains owner. mark as new")
