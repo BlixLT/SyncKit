@@ -17,6 +17,10 @@ public extension Notification.Name {
     static let SynchronizerDidFailToSynchronize = Notification.Name("QSCloudKitSynchronizerDidFailToSynchronizeNotification")
 }
 
+public func debugPrint(_ items: Any..., separator: String = " ", terminator: String = "\n") {
+    NSLog("%@", items)
+}
+
 // For Obj-C
 @objc public extension NSNotification {
     static let CloudKitSynchronizerWillSynchronizeNotification: NSString = "QSCloudKitSynchronizerWillSynchronizeNotification"
