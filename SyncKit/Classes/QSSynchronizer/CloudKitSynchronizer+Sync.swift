@@ -77,10 +77,14 @@ extension CloudKitSynchronizer {
         var filteredZoneIDs = [CKRecordZone.ID]()
         activeZoneTokens = [CKRecordZone.ID: CKServerChangeToken]()
         
+        debugPrint("loadTokensFor: ", zoneIDs)
         for zoneID in zoneIDs {
             var modelAdapter = modelAdapterDictionary[zoneID]
+            debugPrint("modelAdapter.loadTokens: ", modelAdapter, loadAdapters)
             if modelAdapter == nil && loadAdapters {
+                debugPrint("modelAdapterForRecordZoneID: ", zoneID)
                 if let newModelAdapter = adapterProvider.cloudKitSynchronizer(self, modelAdapterForRecordZoneID: zoneID) {
+                    debugPrint("newModelAdapter: ", newModelAdapter)
                     modelAdapter = newModelAdapter
                     modelAdapterDictionary[zoneID] = newModelAdapter
                     newModelAdapter.prepareToImport()
@@ -88,6 +92,7 @@ extension CloudKitSynchronizer {
             }
             
             if let adapter = modelAdapter {
+                debugPrint("modelAdapter found")
                 filteredZoneIDs.append(zoneID)
                 activeZoneTokens[zoneID] = adapter.serverChangeToken
             }
@@ -200,7 +205,7 @@ extension CloudKitSynchronizer {
                 let zoneIDsToFetch = self.loadTokens(for: changedZoneIDs, loadAdapters: true)
                 
                 guard zoneIDsToFetch.count > 0 else {
-                    debugPrint("zoneIDsToFetch.count == 0")
+                    debugPrint("zoneIDsToFetch.count == 0", "changedZoneIDs", changedZoneIDs)
                     self.resetActiveTokens()
                     completion(token, nil)
                     return
