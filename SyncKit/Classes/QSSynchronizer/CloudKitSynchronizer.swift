@@ -7,6 +7,7 @@
 
 import Foundation
 import CloudKit
+import CocoaLumberjackSwift
 
 // For Swift
 public extension Notification.Name {
@@ -17,8 +18,14 @@ public extension Notification.Name {
     static let SynchronizerDidFailToSynchronize = Notification.Name("QSCloudKitSynchronizerDidFailToSynchronizeNotification")
 }
 
+public func ddPrint(_ message: String) {
+    DDLogInfo(message);
+}
+
 public func debugPrint(_ items: Any..., separator: String = " ", terminator: String = "\n") {
-    NSLog("%@", items)
+    let stringArray : [String] = items.compactMap { String(describing:$0) }
+    let string = stringArray.joined(separator: " ")
+    ddPrint(string);
 }
 
 // For Obj-C

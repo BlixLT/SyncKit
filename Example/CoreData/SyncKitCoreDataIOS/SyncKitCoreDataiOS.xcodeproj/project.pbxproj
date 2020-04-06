@@ -45,7 +45,20 @@
 		648D93DF22CBEF3700C01529 /* CloudKitSynchronizerOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648D93DC22CBEF3700C01529 /* CloudKitSynchronizerOperation.swift */; };
 		648D93E022CBEF3700C01529 /* FetchZoneChangesOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648D93DD22CBEF3700C01529 /* FetchZoneChangesOperation.swift */; };
 		64B3A3BA22B54AF000E4E942 /* QSManagedObjectContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64B3A3B922B54AEF00E4E942 /* QSManagedObjectContext.swift */; };
+		91E25BDB24377FCD00B08A53 /* CocoaLumberjackSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91E25BD924377F2900B08A53 /* CocoaLumberjackSwift.framework */; settings = {ATTRIBUTES = (Required, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		91E25BDC24377FE400B08A53 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		640C330822A2F15100A85508 /* SyncKitCoreDataiOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncKitCoreDataiOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,6 +103,8 @@
 		648D93DC22CBEF3700C01529 /* CloudKitSynchronizerOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CloudKitSynchronizerOperation.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/Operations/CloudKitSynchronizerOperation.swift; sourceTree = "<group>"; };
 		648D93DD22CBEF3700C01529 /* FetchZoneChangesOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = FetchZoneChangesOperation.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/Operations/FetchZoneChangesOperation.swift; sourceTree = "<group>"; };
 		64B3A3B922B54AEF00E4E942 /* QSManagedObjectContext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = QSManagedObjectContext.swift; path = ../../../../../SyncKit/Classes/CoreData/QSManagedObjectContext.swift; sourceTree = "<group>"; };
+		91E25BD924377F2900B08A53 /* CocoaLumberjackSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjackSwift.framework; path = ../../../../CocoaLumberjack/iOS/CocoaLumberjackSwift.framework; sourceTree = "<group>"; };
+		91E25BDF2437802000B08A53 /* CocoaLumberjack.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjack.framework; path = ../../../../CocoaLumberjack/iOS/CocoaLumberjack.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91E25BDB24377FCD00B08A53 /* CocoaLumberjackSwift.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -108,6 +124,7 @@
 			children = (
 				640C330A22A2F15100A85508 /* SyncKit */,
 				640C330922A2F15100A85508 /* Products */,
+				91E25B862436346C00B08A53 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -181,6 +198,15 @@
 			path = Core;
 			sourceTree = "<group>";
 		};
+		91E25B862436346C00B08A53 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				91E25BD924377F2900B08A53 /* CocoaLumberjackSwift.framework */,
+				91E25BDF2437802000B08A53 /* CocoaLumberjack.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -203,6 +229,7 @@
 				640C330422A2F15100A85508 /* Sources */,
 				640C330522A2F15100A85508 /* Frameworks */,
 				640C330622A2F15100A85508 /* Resources */,
+				91E25BDC24377FE400B08A53 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -428,6 +455,7 @@
 		640C331122A2F15100A85508 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
@@ -436,6 +464,11 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/iOS/,
+				);
 				INFOPLIST_FILE = SyncKit/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
@@ -443,6 +476,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mentrena.SyncKitCoreDataiOS;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
@@ -456,6 +493,7 @@
 		640C331222A2F15100A85508 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
@@ -464,6 +502,11 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/iOS/,
+				);
 				INFOPLIST_FILE = SyncKit/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
@@ -471,6 +514,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mentrena.SyncKitCoreDataiOS;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
@@ -548,6 +595,7 @@
 		915E0C8A2432662000D830BF /* Beta */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
@@ -556,6 +604,11 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/iOS/,
+				);
 				INFOPLIST_FILE = SyncKit/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
@@ -563,6 +616,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
 				);
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mentrena.SyncKitCoreDataiOS;
@@ -642,6 +699,7 @@
 		9193E20D23142B0200A5AD61 /* Nightly */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
@@ -650,6 +708,11 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/iOS/,
+				);
 				INFOPLIST_FILE = SyncKit/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
@@ -657,6 +720,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
 				);
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mentrena.SyncKitCoreDataiOS;

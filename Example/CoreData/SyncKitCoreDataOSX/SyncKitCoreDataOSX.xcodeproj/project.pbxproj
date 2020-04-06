@@ -44,7 +44,22 @@
 		649236F922C7C1460074A142 /* QSSyncedEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40522C006D000EAC16C /* QSSyncedEntity+CoreDataClass.swift */; };
 		649236FA22C7C1460074A142 /* QSSyncedEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40C22C006D000EAC16C /* QSSyncedEntity+CoreDataProperties.swift */; };
 		649236FB22C7C14D0074A142 /* QSCloudKitSyncModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */; };
+		91ED32FC243A9F26002E68A5 /* CocoaLumberjackSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */; };
+		91ED3301243AA351002E68A5 /* CocoaLumberjackSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		91E25B9E2436A6C500B08A53 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				91ED3301243AA351002E68A5 /* CocoaLumberjackSwift.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6433B37F22C001D200EAC16C /* SyncKitCoreDataOSX.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SyncKitCoreDataOSX.h; sourceTree = "<group>"; };
@@ -89,6 +104,8 @@
 		648D93F322CBEF5600C01529 /* CloudKitSynchronizer+Sync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "CloudKitSynchronizer+Sync.swift"; path = "../../../../../SyncKit/Classes/QSSynchronizer/CloudKitSynchronizer+Sync.swift"; sourceTree = "<group>"; };
 		648D93F422CBEF5600C01529 /* ModelAdapter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ModelAdapter.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/ModelAdapter.swift; sourceTree = "<group>"; };
 		649236DF22C7C1230074A142 /* SyncKitCoreDataOSX.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncKitCoreDataOSX.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjackSwift.framework; path = ../../../../CocoaLumberjack/macOS/CocoaLumberjackSwift.framework; sourceTree = "<group>"; };
+		91ED32FB243A9F26002E68A5 /* CocoaLumberjack.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjack.framework; path = ../../../../CocoaLumberjack/macOS/CocoaLumberjack.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +113,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91ED32FC243A9F26002E68A5 /* CocoaLumberjackSwift.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,6 +125,7 @@
 			children = (
 				6433B37E22C001D200EAC16C /* SyncKitCoreDataOSX */,
 				6433B37D22C001D200EAC16C /* Products */,
+				91E25B892436349000B08A53 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -180,6 +199,15 @@
 			path = Core;
 			sourceTree = "<group>";
 		};
+		91E25B892436349000B08A53 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */,
+				91ED32FB243A9F26002E68A5 /* CocoaLumberjack.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -201,6 +229,7 @@
 				649236DB22C7C1230074A142 /* Sources */,
 				649236DC22C7C1230074A142 /* Frameworks */,
 				649236DD22C7C1230074A142 /* Resources */,
+				91E25B9E2436A6C500B08A53 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -432,6 +461,12 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/macOS/,
+				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -459,6 +494,12 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/macOS/,
+				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -550,6 +591,12 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/macOS/,
+				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -641,6 +688,12 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
+					"$(PROJECT_DIR)",
+					../../../../CocoaLumberjack/macOS/,
+				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
