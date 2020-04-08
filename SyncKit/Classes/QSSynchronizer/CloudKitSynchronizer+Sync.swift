@@ -444,10 +444,12 @@ extension CloudKitSynchronizer {
         
         let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
         
+        debugPrint("will create modifyRecordsOperation ", adapter.recordZoneID)
         modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
             
             self.dispatchQueue.async {
                 
+                debugPrint("modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
                 if let error = operationError {
                     if self.isLimitExceededError(error as NSError) {
                         self.batchSize = self.batchSize / 2

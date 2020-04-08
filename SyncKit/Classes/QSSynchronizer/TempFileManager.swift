@@ -11,6 +11,7 @@ class TempFileManager {
     
     let identifier: String
     init(identifier: String) {
+        debugPrint("TempFileManager.initWithIdentifier:", identifier)
         self.identifier = identifier
     }
     
@@ -28,17 +29,20 @@ class TempFileManager {
         
         let fileName = ProcessInfo.processInfo.globallyUniqueString
         let url = assetDirectory.appendingPathComponent(fileName)
+        debugPrint("TempFileManager.will write to: ", url)
         try? data.write(to: url, options: .atomicWrite)
         return url
     }
     
     func clearTempFiles() {
         
+        debugPrint("TempFileManager.clearTempFiles: ", self.identifier)
         guard let fileURLs = try? FileManager.default.contentsOfDirectory(at: assetDirectory, includingPropertiesForKeys: nil, options: []) else {
             return
         }
         
         for fileURL in fileURLs {
+            debugPrint("TempFileManager.deleting fileURL: ", fileURL)
             try? FileManager.default.removeItem(at: fileURL)
         }
     }

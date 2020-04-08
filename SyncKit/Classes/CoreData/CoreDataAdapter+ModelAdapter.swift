@@ -255,6 +255,7 @@ extension CoreDataAdapter: ModelAdapter {
     public func didFinishImport(with error: Error?) {
         guard privateContext != nil else { return }
         
+        debugPrint("didFinishImportWithError: ", error ?? "nil")
         privateContext.performAndWait {
             self.savePrivateContext()
             self.updateHasChanges()
@@ -297,6 +298,7 @@ extension CoreDataAdapter: ModelAdapter {
     }
     
     public func deleteChangeTracking() {
+        debugPrint("deleteChangeTracking")
         NotificationCenter.default.removeObserver(self)
         stack.deleteStore()
         privateContext = nil

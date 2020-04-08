@@ -394,6 +394,7 @@ extension CoreDataAdapter {
                         let data = value as? Data {
                         let fileURL = self.tempFileManager.store(data: data)
                         let asset = CKAsset(fileURL: fileURL)
+                        debugPrint("ckasset fileURL :", fileURL)
                         record[attributeName] = asset
                     } else if attributeDescription.attributeType == .transformableAttributeType,
                         let value = value,
