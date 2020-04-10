@@ -31,7 +31,7 @@ extension CloudKitSynchronizer {
         resetActiveTokens()
         
         for adapter in modelAdapters {
-            adapter.didFinishImport(with: error)
+            adapter.didFinishImport(with: error, clearTempFiles: true)
         }
         
         if let error = error {

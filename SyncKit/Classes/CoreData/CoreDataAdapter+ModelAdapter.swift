@@ -252,7 +252,8 @@ extension CoreDataAdapter: ModelAdapter {
         return hasEntity
     }
     
-    public func didFinishImport(with error: Error?) {
+    public func didFinishImport(with error: Error?, clearTempFiles : Bool)
+    {
         guard privateContext != nil else { return }
         
         debugPrint("didFinishImportWithError: ", error ?? "nil")
@@ -262,7 +263,15 @@ extension CoreDataAdapter: ModelAdapter {
         }
         
         clearImportContext()
-        tempFileManager.clearTempFiles()
+        if clearTempFiles
+        {
+            tempFileManager.clearTempFiles()
+        }
+    }
+    
+    public func didFinishImport(with error: Error?)
+    {
+        self.didFinishImport(with: error, clearTempFiles: false)
     }
     
     public var serverChangeToken: CKServerChangeToken? {

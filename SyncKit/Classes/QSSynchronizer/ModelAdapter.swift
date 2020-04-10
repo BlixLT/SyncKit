@@ -111,7 +111,8 @@ public extension Notification.Name {
      *  @param error Optional error, if any error happened.
      */
     func didFinishImport(with error: Error?)
-    
+    func didFinishImport(with error: Error?, clearTempFiles : Bool)
+
     /**
      *  Returns record zone ID managed by this adapter
      *
