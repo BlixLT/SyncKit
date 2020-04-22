@@ -571,13 +571,13 @@ extension CoreDataAdapter {
     func managedObjects(entityName: String, identifiers: [String], context: NSManagedObjectContext) -> [NSManagedObject] {
         let identifierKey = identifierFieldName(forEntity: entityName)
         return try! context.executeFetchRequest(entityName: entityName,
-                                                predicate: NSPredicate(format: "%K IN %@", identifierKey, identifiers)) as! [NSManagedObject]
+                                                predicate: NSPredicate(format: "%K IN %@ and %K = %@", identifierKey, identifiers, "ckOwnerName", self.sharedZoneOwnerName() ?? 0)) as! [NSManagedObject]
     }
     
     func managedObject(entityName: String, identifier: String, context: NSManagedObjectContext) -> NSManagedObject? {
         let identifierKey = identifierFieldName(forEntity: entityName)
         return try? context.executeFetchRequest(entityName: entityName,
-                                                predicate: NSPredicate(format: "%K == %@", identifierKey, identifier)).first as? NSManagedObject
+                                                predicate: NSPredicate(format: "%K == %@ and %K == %@", identifierKey, identifier, "ckOwnerName", self.sharedZoneOwnerName() ?? 0)).first as? NSManagedObject
     }
     
     func applyAttributeChanges(record: CKRecord, to object: NSManagedObject, state: SyncedEntityState, changedKeys: [String]) {
