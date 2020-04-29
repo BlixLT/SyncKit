@@ -16,11 +16,12 @@ import CloudKit
     func delete(withRecordZoneID zoneID: CKRecordZone.ID, completionHandler: @escaping (CKRecordZone.ID?, Error?) -> Void)
     var databaseScope: CKDatabase.Scope { get }
     
-    #if os(iOS) || os(OSX)
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     func fetchAllSubscriptions(completionHandler: @escaping ([CKSubscription]?, Error?) -> Void)
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     func save(subscription: CKSubscription, completionHandler: @escaping (CKSubscription?, Error?) -> Void)
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     func delete(withSubscriptionID subscriptionID: CKSubscription.ID, completionHandler: @escaping (String?, Error?) -> Void)
-    #endif
 }
 
 @objc public class DefaultCloudKitDatabaseAdapter: NSObject, CloudKitDatabaseAdapter {
@@ -50,17 +51,18 @@ import CloudKit
         return database.databaseScope
     }
     
-    #if os(iOS) || os(OSX)
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     public func fetchAllSubscriptions(completionHandler: @escaping ([CKSubscription]?, Error?) -> Void) {
         database.fetchAllSubscriptions(completionHandler: completionHandler)
     }
     
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     public func save(subscription: CKSubscription, completionHandler: @escaping (CKSubscription?, Error?) -> Void) {
         database.save(subscription, completionHandler: completionHandler)
     }
     
+    @available(iOS 10.0, macOS 10.12, watchOS 6.0, *)
     public func delete(withSubscriptionID subscriptionID: CKSubscription.ID, completionHandler: @escaping (String?, Error?) -> Void) {
         database.delete(withSubscriptionID: subscriptionID, completionHandler: completionHandler)
     }
-    #endif
 }

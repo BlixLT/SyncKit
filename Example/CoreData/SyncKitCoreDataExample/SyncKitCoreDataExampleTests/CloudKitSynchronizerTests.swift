@@ -306,11 +306,11 @@ class CloudKitSynchronizerTests: XCTestCase {
     }
     
     func testEraseLocal_deletesAdapterTracking() {
-        synchronizer.eraseLocalMetadata()
         let adapterExpectation = self.expectation(description: "deleteChangeTracking called on adapter")
         mockAdapter.deleteChangeTrackingCalledClosure = {
             adapterExpectation.fulfill()
         }
+        synchronizer.eraseLocalMetadata()
         waitForExpectations(timeout: 1, handler: nil)
         XCTAssertEqual(synchronizer.modelAdapters.count, 0)
         weak var weakAdapter: ModelAdapter? = mockAdapter
