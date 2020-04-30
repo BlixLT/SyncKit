@@ -25,8 +25,6 @@ extension CloudKitSynchronizer {
     }
     
     func finishSynchronization(error: Error?) {
-        syncing = false
-        cancelSync = false
         
         resetActiveTokens()
         
@@ -42,6 +40,8 @@ extension CloudKitSynchronizer {
         
         DispatchQueue.main.async {
             self.completion?(error)
+            self.syncing = false
+            self.cancelSync = false
             self.completion = nil
             
             debugPrint("QSCloudKitSynchronizer >> Finishing synchronization:", self)

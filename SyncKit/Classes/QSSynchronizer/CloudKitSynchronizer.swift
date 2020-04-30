@@ -194,7 +194,7 @@ public class CloudKitSynchronizer: NSObject {
             completion?(SyncError.alreadySyncing)
             return
         }
-        debugPrint("CloudKitSynchronizer >> Initiating synchronization")
+        debugPrint("CloudKitSynchronizer >> Initiating synchronization, old completion:", self.completion)
         cancelSync = false
         syncing = true
         self.completion = completion
