@@ -338,6 +338,10 @@ extension CoreDataAdapter {
             var includedEntityIDs = Set<String>()
             while recordsArray.count < limit && !pending.isEmpty {
                 var entity: QSSyncedEntity! = pending.last
+                if (entity != nil && includedEntityIDs.contains(entity.identifier!))
+                {
+                    ddPrint("alraedy included. duplicate?")
+                }
                 while entity != nil && entity.entityState == state && !includedEntityIDs.contains(entity.identifier!) {
                     var parentEntity: QSSyncedEntity? = nil
                     if let index = pending.firstIndex(of: entity) {

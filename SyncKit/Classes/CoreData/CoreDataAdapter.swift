@@ -287,7 +287,7 @@ extension CoreDataAdapter {
         }
     }
     
-    @objc public func sharesByPrimaryKeysForObjects(_ objects:[NSObject], completion: ((NSDictionary?) -> ())?)
+    @objc public func sharesByPrimaryKeysForObjects(_ objects:[NSManagedObject], completion: ((NSDictionary?) -> ())?)
     {
         if self.privateContext == nil
         {
@@ -301,11 +301,14 @@ extension CoreDataAdapter {
             let mutableDictionary = dictionary.mutableCopy() as! NSMutableDictionary
             for object in objects
             {
-                let share = self.share(for:object)
-                if share != nil
+                if object.managedObjectContext != nil
                 {
-                    let identifier = self.threadSafePrimaryKeyValue(for: object as! NSManagedObject)
-                    mutableDictionary[identifier] = share;
+                    let share = self.share(for:object)
+                    if share != nil
+                    {
+                        let identifier = self.threadSafePrimaryKeyValue(for: object as! NSManagedObject)
+                        mutableDictionary[identifier] = share;
+                    }
                 }
             }
             dictionary = mutableDictionary

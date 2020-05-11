@@ -79,6 +79,10 @@ import CloudKit
         }
         
         addMetadata(to: [record, share])
+        /* upload to cloudkit as dummy device, so it will be returned to this device when fetching changes as well */
+        share[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
+        record[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
+        record["ckShareRecordName"] = share.recordID.recordName
         
         for (key, value) in extraShareAttributes
         {
@@ -97,23 +101,29 @@ import CloudKit
                     operationError == nil,
                     let share = uploadedShare {
                     
-                    modelAdapter.prepareToImport()
-                    let records = savedRecords.filter { $0 != share }
-                    modelAdapter.didUpload(savedRecords: records)
-                    modelAdapter.persistImportedChanges(completion: { (error) in
-                        
-                        self.dispatchQueue.async {
+                    DispatchQueue.main.async {
+                        completion?(uploadedShare, operationError)
+                    }
+                    
+/* do not process in the adapter context, because sharing and syncing cannot be done at the same time (both access, resets, saves privateContext and targetImportContext, so might do some unwanted things to sync operation) */
+                    
+//                    modelAdapter.prepareToImport()
+//                    let records = savedRecords.filter { $0 != share }
+//                    modelAdapter.didUpload(savedRecords: records)
+//                    modelAdapter.persistImportedChanges(completion: { (error) in
+//
+//                        self.dispatchQueue.async {
+//
+//                            if error == nil {
+//                                modelAdapter.save(share: share, for: object)
+//                            }
+//                            modelAdapter.didFinishImport(with: error)
                             
-                            if error == nil {
-                                modelAdapter.save(share: share, for: object)
-                            }
-                            modelAdapter.didFinishImport(with: error)
-                            
-                            DispatchQueue.main.async {
-                                completion?(uploadedShare, error)
-                            }
-                        }
-                    })
+//                            DispatchQueue.main.async {
+//                                completion?(uploadedShare, error)
+//                            }
+//                        }
+//                    })
                     
                 } else {
                     
