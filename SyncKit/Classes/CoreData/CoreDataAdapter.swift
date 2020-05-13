@@ -287,7 +287,7 @@ extension CoreDataAdapter {
         }
     }
     
-    @objc public func sharesByPrimaryKeysForObjects(_ objects:[NSManagedObject], completion: ((NSDictionary?) -> ())?)
+    @objc public func sharesByPrimaryKeysForObjects(_ objects:[NSManagedObject], completion: ((NSDictionary) -> ())?)
     {
         if self.privateContext == nil
         {
@@ -295,24 +295,44 @@ extension CoreDataAdapter {
             completion!(NSDictionary());
             return
         }
+        if (objects.count == 0)
+        {
+            completion!(NSDictionary());
+            return
+        }
         self.privateContext.perform {
             
-            var dictionary = NSDictionary()
-            let mutableDictionary = dictionary.mutableCopy() as! NSMutableDictionary
-            for object in objects
+            if let object = objects.first
             {
-                if object.managedObjectContext != nil
-                {
-                    let share = self.share(for:object)
-                    if share != nil
+                var remainingObjects = objects
+                remainingObjects.remove(at: 0)
+                self.sharesByPrimaryKeysForObjects(remainingObjects) { aDictionary in
+                    if object.managedObjectContext != nil
                     {
-                        let identifier = self.threadSafePrimaryKeyValue(for: object as! NSManagedObject)
-                        mutableDictionary[identifier] = share;
+                        self.share(for: object) { (share, anErrorShare) in
+                            if share != nil
+                            {
+                                object.managedObjectContext?.perform {
+                                    let mutableDictionary = aDictionary.mutableCopy() as! NSMutableDictionary
+                                    if let identifier = self.uniqueIdentifier(for: object)
+                                    {
+                                        mutableDictionary[identifier] = share;
+                                    }
+                                    completion!(mutableDictionary);
+                                }
+                            }
+                            else
+                            {
+                                completion!(aDictionary);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        completion!(aDictionary);
                     }
                 }
             }
-            dictionary = mutableDictionary
-            completion!(dictionary);
         }
     }
 }
