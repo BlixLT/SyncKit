@@ -451,6 +451,8 @@ extension CloudKitSynchronizer {
                 
                 debugPrint("modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
                 if let error = operationError {
+                    debugPrint("(error) successfully uploaded records:", savedRecords?.count ?? 0, "deleted records:", deletedRecordIDs?.count ?? 0)
+
                     if self.isLimitExceededError(error as NSError) {
                         self.batchSize = self.batchSize / 2
                     }
