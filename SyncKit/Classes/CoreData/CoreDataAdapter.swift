@@ -268,22 +268,36 @@ extension CoreDataAdapter {
     }
     
     // MARK: sharing
-    @objc public func sharedObjects(_ objects:[NSObject], completion: ((NSSet?) -> ())?)
+    @objc public func sharedObjects(_ objects:[NSObject], completion: ((NSSet) -> ())?)
     {
+        if self.privateContext == nil
+        {
+            // adapter was/will be deleted/reset
+            completion!(NSSet());
+            return
+        }
+        if (objects.count == 0)
+        {
+            completion!(NSSet());
+            return
+        }
         self.privateContext.perform {
             
-            var set = NSSet()
-            let mutableSet = set.mutableCopy() as! NSMutableSet
-            for object in objects
+            if let object = objects.first
             {
-                let share = self.share(for:object)
-                if share != nil
-                {
-                    mutableSet.add(object)
+                var remainingObjects = objects
+                remainingObjects.remove(at: 0)
+                self.sharedObjects(remainingObjects) { (set) in
+                    let mutableSet = set.mutableCopy() as! NSMutableSet
+                    self.share(for: object) { (share, shareError) in
+                        if share != nil
+                        {
+                            mutableSet.add(object)
+                        }
+                        completion!(mutableSet);
+                    }
                 }
             }
-            set = mutableSet
-            completion!(set);
         }
     }
     

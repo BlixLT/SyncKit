@@ -82,7 +82,6 @@ import CloudKit
         /* upload to cloudkit as dummy device, so it will be returned to this device when fetching changes as well */
         share[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
         record[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
-        record["ckShareRecordName"] = share.recordID.recordName
         
         for (key, value) in extraShareAttributes
         {
