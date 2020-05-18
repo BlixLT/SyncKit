@@ -345,7 +345,8 @@ extension CoreDataAdapter: ModelAdapter {
 
     @available(iOS 10.0, OSX 10.12, *)
     public func share(for object: AnyObject, completion: @escaping (CKShare?, Error?)->()) {
-        guard let object = object as? IdentifiableManagedObject else {
+        guard let object = object as? IdentifiableManagedObject,
+        privateContext != nil else {
             completion(nil, nil)
             return
         }
