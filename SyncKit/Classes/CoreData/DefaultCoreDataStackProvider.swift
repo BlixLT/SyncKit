@@ -69,9 +69,11 @@ import CoreData
 extension DefaultCoreDataStackProvider: AdapterProvider {
     public func cloudKitSynchronizer(_ synchronizer: CloudKitSynchronizer, modelAdapterForRecordZoneID zoneID: CKRecordZone.ID) -> ModelAdapter? {
         if let adapter = adapterDictionary[zoneID] {
+            debugPrint("adapter exists: ", zoneID)
             return adapter
         }
-        
+
+        debugPrint("will create new adapter for: ", zoneID)
         let folderName = "\(zoneID.zoneName).zoneID.\(zoneID.ownerName)"
         let folderURL = directoryURL.appendingPathComponent(folderName)
         try! FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)

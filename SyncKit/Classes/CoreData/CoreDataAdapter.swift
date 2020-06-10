@@ -73,6 +73,7 @@ import CloudKit
         self.privateContext = persistenceStack.managedObjectContext
         super.init()
         
+        debugPrint("will register context notifications")
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(targetContextWillSave(notification:)),
                                                name: .NSManagedObjectContextWillSave,
@@ -155,7 +156,9 @@ extension CoreDataAdapter {
     
     private func setupPrimaryKeysLookup() {
         
+        debugPrint("setupPrimaryKeysLookup")
         targetContext.performAndWait {
+            debugPrint("setupPrimaryKeysLookup. targetContextBlock")
             guard let entities = self.targetContext.persistentStoreCoordinator?.managedObjectModel.entities else { return }
             for entityDescription in entities {
                 let entityClass: AnyClass? = NSClassFromString(entityDescription.managedObjectClassName)
@@ -166,7 +169,9 @@ extension CoreDataAdapter {
                     assert(false, "PrimaryKey protocol not implemented for class: \(String(describing: entityClass))")
                 }
             }
+            debugPrint("setupPrimaryKeysLookup. targetContextBlock. end")
         }
+        debugPrint("setupPrimaryKeysLookup. end")
     }
     
     private func setupChildrenRelationshipsLookup() {
