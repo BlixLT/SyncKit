@@ -53,6 +53,11 @@ extension CoreDataAdapter {
                 }
             }
             
+            if (self.privateContext == nil)
+            {
+                // adapter is being destroyed
+                return;
+            }
             privateContext.perform {
                 for (identifier, objectChangedKeys) in identifiersAndChanges {
                     guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { continue }
@@ -104,6 +109,11 @@ extension CoreDataAdapter {
             
             let deletedCount = deleted?.count ?? 0
 
+            if (self.privateContext == nil)
+            {
+                // adapter is being destroyed
+                return;
+            }
             privateContext.perform {
                 // get trackedObjectIDs
                 let trackedObjects = self.fetchEntities(originObjectIDs:allUpdateObjectIDs)
@@ -146,6 +156,11 @@ extension CoreDataAdapter {
                     
                     let updatedCount = updatedMutable.count
                     let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || updatedCount > 0 || deletedCount > 0
+                    if (self.privateContext == nil)
+                    {
+                        // adapter is being destroyed
+                        return;
+                    }
                     self.privateContext.perform {
                         insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
                             let entity = self.syncedEntity(withOriginIdentifier: identifier)
@@ -222,6 +237,11 @@ extension CoreDataAdapter {
                         let identifierKey = identifierFieldName(forEntity: $0.entity.name!)
                         let oldIdentifier = $0.committedValues(forKeys:[identifierKey])[identifierKey] as? String ?? ""
 
+                        if (self.privateContext == nil)
+                        {
+                            // adapter is being destroyed
+                            return;
+                        }
                         self.privateContext.perform {
                             debugPrint("changedKeys contains owner. mark as new")
                             if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier)
@@ -243,6 +263,11 @@ extension CoreDataAdapter {
                             (oldIdentifier.count > 0 && identifier.count > 0)
                         {
                             debugPrint("oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
+                            if (self.privateContext == nil)
+                            {
+                                // adapter is being destroyed
+                                return;
+                            }
                             self.privateContext.perform {
                                  if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier) {
                                     entity.entityState = .new

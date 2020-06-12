@@ -161,8 +161,12 @@ extension CoreDataAdapter: ModelAdapter {
                 if error != nil {
                     self.privateContext.reset()
                 } else {
-                    self.privateContext.perform {
-                        self.updateInsertedEntitiesAndSave()
+                    if self.privateContext != nil
+                    {
+                        self.privateContext.perform
+                        {
+                            self.updateInsertedEntitiesAndSave()
+                        }
                     }
                 }
                 completion(error)
@@ -307,7 +311,7 @@ extension CoreDataAdapter: ModelAdapter {
     }
     
     public func deleteChangeTracking() {
-        debugPrint("deleteChangeTracking")
+        debugPrint("deleteChangeTracking", self.recordZoneID)
         NotificationCenter.default.removeObserver(self)
         stack.deleteStore()
         privateContext = nil

@@ -15,17 +15,18 @@ typealias IdentifiableManagedObject = NSManagedObject & PrimaryKey
 //MARK: - Utilities
 extension CoreDataAdapter {
     func savePrivateContext() {
+        debugPrint("savePrivateContext", self.recordZoneID)
         try? self.privateContext.save()
     }
     
     func configureImportContext() {
-        debugPrint("configureImportContext");
+        debugPrint("configureImportContext", self.recordZoneID);
         targetImportContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         targetImportContext.parent = targetContext
     }
     
     func clearImportContext() {
-        debugPrint("clearImportContext");
+        debugPrint("clearImportContext", self.recordZoneID);
         guard let targetImportContext = targetImportContext else { return }
         targetImportContext.performAndWait {
             self.targetImportContext.reset()
