@@ -18,7 +18,39 @@ import CloudKit
         }
         return nil
     }
+
+    fileprivate func modelAdapter(for object: AnyObject, completion: @escaping (ModelAdapter?, Error?)->()) {
+        self.modelAdapter(for: object, modelAdapters:modelAdapters, completion:completion)
+    }
     
+    fileprivate func modelAdapter(for object: AnyObject, modelAdapters:[ModelAdapter], completion: @escaping (ModelAdapter?, Error?)->()) {
+        
+        if (modelAdapters.count == 0)
+        {
+            completion(nil, nil)
+            return
+        }
+        if let modelAdapter = modelAdapters.first
+        {
+            var remainingModelAdapters = modelAdapters
+            remainingModelAdapters.remove(at: 0)
+            modelAdapter.record(for: object, completion:{ (record, error) in
+                if record != nil
+                {
+                    completion(modelAdapter, nil)
+                }
+                else
+                {
+                    self.modelAdapter(for:object, modelAdapters:remainingModelAdapters, completion:completion)
+                }
+            })
+        }
+        else
+        {
+            completion(nil, nil)
+        }
+    }
+
     /**
      Returns the locally stored `CKShare` for a given model object.
      - Parameter object  The model object.
@@ -67,73 +99,83 @@ import CloudKit
      */
     @objc func share(object: AnyObject, publicPermission: CKShare.Participant.Permission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
         
-        guard let modelAdapter = modelAdapter(for: object),
-            let record = modelAdapter.record(for: object) else {
+        modelAdapter(for:object, completion: { (aModelAdapter, error) in
+            guard let modelAdapter = aModelAdapter else
+            {
                 completion?(nil, CloudKitSynchronizer.SyncError.recordNotFound)
                 return
-        }
-        let share = CKShare(rootRecord: record)
-        share.publicPermission = publicPermission
-        for participant in participants {
-            share.addParticipant(participant)
-        }
-        
-        addMetadata(to: [record, share])
-        /* upload to cloudkit as dummy device, so it will be returned to this device when fetching changes as well */
-        share[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
-        record[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
-        
-        for (key, value) in extraShareAttributes
-        {
-            share[key] = value;
-        }
-        
-        let operation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
-        
-        operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
-            
-            self.dispatchQueue.async {
+            }
+            modelAdapter.record(for: object, completion:{ (aRecord, error) in
+                guard let record = aRecord else
+                {
+                    completion?(nil, CloudKitSynchronizer.SyncError.recordNotFound)
+                    return
+                }
                 
-                let uploadedShare = savedRecords?.first { $0 is CKShare} as? CKShare
+                let share = CKShare(rootRecord: record)
+                share.publicPermission = publicPermission
+                for participant in participants {
+                    share.addParticipant(participant)
+                }
                 
-                if let savedRecords = savedRecords,
-                    operationError == nil,
-                    let share = uploadedShare {
+                self.addMetadata(to: [record, share])
+                /* upload to cloudkit as dummy device, so it will be returned to this device when fetching changes as well */
+                share[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
+                record[CloudKitSynchronizer.deviceUUIDKey] = "dummy_identifier"
+                
+                for (key, value) in extraShareAttributes
+                {
+                    share[key] = value;
+                }
+                
+                let operation = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
+                
+                operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
                     
-                    DispatchQueue.main.async {
-                        completion?(uploadedShare, operationError)
-                    }
-                    
-/* do not process in the adapter context, because sharing and syncing cannot be done at the same time (both access, resets, saves privateContext and targetImportContext, so might do some unwanted things to sync operation) */
-                    
-//                    modelAdapter.prepareToImport()
-//                    let records = savedRecords.filter { $0 != share }
-//                    modelAdapter.didUpload(savedRecords: records)
-//                    modelAdapter.persistImportedChanges(completion: { (error) in
-//
-//                        self.dispatchQueue.async {
-//
-//                            if error == nil {
-//                                modelAdapter.save(share: share, for: object)
-//                            }
-//                            modelAdapter.didFinishImport(with: error)
+                    self.dispatchQueue.async {
+                        
+                        let uploadedShare = savedRecords?.first { $0 is CKShare} as? CKShare
+                        
+                        if let savedRecords = savedRecords,
+                            operationError == nil,
+                            let share = uploadedShare {
                             
-//                            DispatchQueue.main.async {
-//                                completion?(uploadedShare, error)
-//                            }
-//                        }
-//                    })
-                    
-                } else {
-                    
-                    DispatchQueue.main.async {
-                        completion?(uploadedShare, operationError)
+                            DispatchQueue.main.async {
+                                completion?(uploadedShare, operationError)
+                            }
+                            
+        /* do not process in the adapter context, because sharing and syncing cannot be done at the same time (both access, resets, saves privateContext and targetImportContext, so might do some unwanted things to sync operation) */
+                            
+        //                    modelAdapter.prepareToImport()
+        //                    let records = savedRecords.filter { $0 != share }
+        //                    modelAdapter.didUpload(savedRecords: records)
+        //                    modelAdapter.persistImportedChanges(completion: { (error) in
+        //
+        //                        self.dispatchQueue.async {
+        //
+        //                            if error == nil {
+        //                                modelAdapter.save(share: share, for: object)
+        //                            }
+        //                            modelAdapter.didFinishImport(with: error)
+                                    
+        //                            DispatchQueue.main.async {
+        //                                completion?(uploadedShare, error)
+        //                            }
+        //                        }
+        //                    })
+                            
+                        } else {
+                            
+                            DispatchQueue.main.async {
+                                completion?(uploadedShare, operationError)
+                            }
+                        }
                     }
                 }
-            }
-        }
-        
-        database.add(operation)
+                
+                self.database.add(operation)
+            })
+        })
     }
     
     /**

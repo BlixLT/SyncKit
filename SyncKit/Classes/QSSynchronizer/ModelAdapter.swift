@@ -148,6 +148,8 @@ public extension Notification.Name {
      *
      *  @param object Model object.
      */
+    
+    func record(for object: AnyObject, completion: @escaping (CKRecord?, Error?)->())
     func record(for object: AnyObject) -> CKRecord?
     
     /**

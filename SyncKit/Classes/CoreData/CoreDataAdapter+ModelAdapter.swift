@@ -333,6 +333,23 @@ extension CoreDataAdapter: ModelAdapter {
         return record
     }
     
+    public func record(for object: AnyObject, completion: @escaping (CKRecord?, Error?)->()) {
+        guard let object = object as? IdentifiableManagedObject,
+            privateContext != nil else {
+                completion(nil, nil)
+                return
+            }
+        let objectIdentifier = threadSafePrimaryKeyValue(for: object)
+        var record: CKRecord?
+        privateContext.perform {
+            if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
+                var parent: QSSyncedEntity?
+                record = self.recordToUpload(for: entity, context: self.targetContext, parentEntity: &parent)
+            }
+            completion(record, nil)
+        }
+    }
+    
     @available(iOS 10.0, OSX 10.12, *)
     public func share(for object: AnyObject) -> CKShare? {
         guard let object = object as? IdentifiableManagedObject,
