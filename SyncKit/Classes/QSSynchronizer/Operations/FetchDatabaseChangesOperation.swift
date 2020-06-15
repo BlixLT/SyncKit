@@ -55,8 +55,8 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
             }
         }
         
-        databaseChangesOperation.completion = {
-            debugPrint("FetchDatabaseChangesOperation.completion:", self)
+        databaseChangesOperation.completionBlock = {
+            debugPrint("FetchDatabaseChangesOperation.completionBlock:", self)
         }
 
         debugPrint("FetchDatabaseChangesOperation.will addOperation:", self)

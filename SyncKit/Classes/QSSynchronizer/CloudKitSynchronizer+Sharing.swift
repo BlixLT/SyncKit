@@ -179,8 +179,8 @@ import CloudKit
                     }
                 }
                 
-                operation.completion = {
-                    debugPrint("shareObject.modifyRecordsOperation.completion")
+                operation.completionBlock = {
+                    debugPrint("shareObject.modifyRecordsOperation.completionBlock")
                 }
                 
                 debugPrint("shareObject.will add modifyRecordsOperation")
