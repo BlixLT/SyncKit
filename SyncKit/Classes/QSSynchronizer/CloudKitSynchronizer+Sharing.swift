@@ -99,15 +99,19 @@ import CloudKit
      */
     @objc func share(object: AnyObject, publicPermission: CKShare.Participant.Permission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
         
+        debugPrint("shareObject.start")
+        
         modelAdapter(for:object, completion: { (aModelAdapter, error) in
             guard let modelAdapter = aModelAdapter else
             {
+                debugPrint("shareObject.modelAdapter not found")
                 completion?(nil, CloudKitSynchronizer.SyncError.recordNotFound)
                 return
             }
             modelAdapter.record(for: object, completion:{ (aRecord, error) in
                 guard let record = aRecord else
                 {
+                    debugPrint("shareObject.record not found")
                     completion?(nil, CloudKitSynchronizer.SyncError.recordNotFound)
                     return
                 }
@@ -132,6 +136,8 @@ import CloudKit
                 
                 operation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
                     
+                    debugPrint("shareObject.modifyRecordsOperation.modifyRecordsCompletionBlock")
+
                     self.dispatchQueue.async {
                         
                         let uploadedShare = savedRecords?.first { $0 is CKShare} as? CKShare
@@ -173,6 +179,11 @@ import CloudKit
                     }
                 }
                 
+                operation.completion = {
+                    debugPrint("shareObject.modifyRecordsOperation.completion")
+                }
+                
+                debugPrint("shareObject.will add modifyRecordsOperation")
                 self.database.add(operation)
             })
         })
