@@ -92,6 +92,10 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
                         self.zoneResults[record.recordID.zoneID]?.downloadedRecords.append(record)
                     }
                 }
+                else
+                {
+                    debugPrint("ignored record:", record.recordID.recordName, "deviceIdentifier:", ignoreDeviceIdentifier, record[CloudKitSynchronizer.deviceUUIDKey] ?? "nil")
+                }
             }
         }
         

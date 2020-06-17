@@ -351,7 +351,7 @@ extension CoreDataAdapter {
                     let record = self.recordToUpload(for: entity, context: self.targetContext, parentEntity: &parentEntity)
                     if (record != nil)
                     {
-                        debugPrint("recordToUpload: ", record!.recordID.recordName)
+                        debugPrint("recordToUpload: ", record!.recordID.recordName, "cateogry", record!["category"] ?? "nil", "amount:", record!["amount"] ?? "nil", "payee:", record!["payee"] ?? "nil","timestamp:",record![CoreDataAdapter.timestampKey] ?? "nil")
                         recordsArray.append(record!)
                         includedEntityIDs.insert(entity.identifier!)
                         entity = parentEntity

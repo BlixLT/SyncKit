@@ -196,8 +196,13 @@ extension CoreDataAdapter: ModelAdapter {
             for record in savedRecords {
                 if let entity = self.syncedEntity(withIdentifier: record.recordID.recordName) {
                     if record[CoreDataAdapter.timestampKey] == entity.updatedDate && entity.entityState != .deleted {
+                        debugPrint("timestamps equal - mark as synced: ", record.recordID.recordName)
                         entity.entityState = .synced
                         entity.changedKeysArray = []
+                    }
+                    else
+                    {
+                        debugPrint("timestamps not equal (or deleted)", record.recordID.recordName, record[CoreDataAdapter.timestampKey], entity.updatedDate, entity.entityState)
                     }
                     self.save(record: record, for: entity)
                 }
