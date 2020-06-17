@@ -230,13 +230,7 @@ extension CloudKitSynchronizer {
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
         debugPrint("fetchZoneChanges: ", self)
-        var ignoreDeviceIdentifier = " "
-        // ignore deviceIdentifier in shared db (doesn't work here - after owner unshares and shares again some object, it might have last change from this device)
-        if database.databaseScope == .private
-        {
-            ignoreDeviceIdentifier = deviceIdentifier
-        }
-        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: ignoreDeviceIdentifier, desiredKeys: nil) { (zoneResults) in
+        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: nil) { (zoneResults) in
             
             debugPrint("fetchZoneChanges.completion: ", self)
             self.dispatchQueue.async {
