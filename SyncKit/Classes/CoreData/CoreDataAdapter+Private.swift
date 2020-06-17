@@ -514,6 +514,10 @@ extension CoreDataAdapter {
                     if let entity = self.syncedEntity(withOriginIdentifier: $0 as! String) {
                         entities.add(entity)
                     }
+                    else
+                    {
+                        debugPrint("BAD.toMany. syncedEntity not found with identifier", $0)
+                    }
                 }
                 entitiesByName[relationshipName] = entities
             }
@@ -522,6 +526,10 @@ extension CoreDataAdapter {
                 let identifier = identifierOrSet as! String
                 if let entity = self.syncedEntity(withOriginIdentifier: identifier) {
                     entitiesByName[relationshipName] = entity
+                }
+                else
+                {
+                    debugPrint("BAD.toOne. syncedEntity not found with identifier", identifier)
                 }
             }
         }
