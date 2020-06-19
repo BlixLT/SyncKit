@@ -229,7 +229,7 @@ extension CloudKitSynchronizer {
     }
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
-        debugPrint("fetchZoneChanges: ", self)
+        debugPrint("fetchZoneChanges: ", self, activeZoneTokens)
         let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: nil) { (zoneResults) in
             
             debugPrint("fetchZoneChanges.completion: ", self)
