@@ -346,6 +346,10 @@ extension CoreDataAdapter: ModelAdapter {
             }
         let objectIdentifier = threadSafePrimaryKeyValue(for: object)
         var record: CKRecord?
+        guard privateContext != nil else {
+            completion(nil, nil)
+            return
+        }
         privateContext.perform {
             if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
                 var parent: QSSyncedEntity?
