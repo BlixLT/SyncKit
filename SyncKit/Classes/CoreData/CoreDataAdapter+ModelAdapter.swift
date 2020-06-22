@@ -382,6 +382,10 @@ extension CoreDataAdapter: ModelAdapter {
         }
         let objectIdentifier = threadSafePrimaryKeyValue(for: object)
         var record: CKShare?
+        guard privateContext != nil else {
+            completion(nil, nil)
+            return
+        }
         privateContext.perform {
             if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
                 record = self.storedShare(for: entity)
