@@ -20,36 +20,48 @@ extension CoreDataAdapter {
             let updated = Array(targetContext.updatedObjects)
             var identifiersAndChanges = [String: [String]]()
             for object in updated {
-                var changedValueKeys = [String]()
-                for key in object.changedValues().keys {
-                    let relationship = object.entity.relationshipsByName[key]
-                    
-                    if object.entity.attributesByName[key] != nil ||
-                        (relationship != nil && relationship!.isToMany == false) {
-                        changedValueKeys.append(key)
+
+                if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: object), self.sharedZoneOwnerName())
+                {
+                    var changedValueKeys = [String]()
+                    for key in object.changedValues().keys {
+                        let relationship = object.entity.relationshipsByName[key]
+                        
+                        if object.entity.attributesByName[key] != nil ||
+                            (relationship != nil && relationship!.isToMany == false) {
+                            changedValueKeys.append(key)
+                        }
+                        else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
+                        {
+                            changedValueKeys.append(key)
+                        }
                     }
-                    else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
-                    {
-                        changedValueKeys.append(key)
+                    if let identifier = uniqueIdentifier(for: object),
+                        changedValueKeys.count > 0 {
+                        identifiersAndChanges[identifier] = changedValueKeys
                     }
-                }
-                if let identifier = uniqueIdentifier(for: object),
-                    changedValueKeys.count > 0 {
-                    identifiersAndChanges[identifier] = changedValueKeys
                 }
             }
             
             let deletedIDs: [String] = targetContext.deletedObjects.compactMap {
-                if self.uniqueIdentifier(for: $0) == nil,
-                    let entityName = $0.entity.name {
-                    // Properties become nil when objects are deleted as a result of using an undo manager
-                    // Here we can retrieve their last known identifier and mark the corresponding synced
-                    // entity for deletion
-                    let identifierFieldName = self.identifierFieldName(forEntity: entityName)
-                    let committedValues = $0.committedValues(forKeys: [identifierFieldName])
-                    return committedValues[identifierFieldName] as? String
-                } else {
-                    return uniqueIdentifier(for: $0)
+
+                if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
+                {
+                    if self.uniqueIdentifier(for: $0) == nil,
+                        let entityName = $0.entity.name {
+                        // Properties become nil when objects are deleted as a result of using an undo manager
+                        // Here we can retrieve their last known identifier and mark the corresponding synced
+                        // entity for deletion
+                        let identifierFieldName = self.identifierFieldName(forEntity: entityName)
+                        let committedValues = $0.committedValues(forKeys: [identifierFieldName])
+                        return committedValues[identifierFieldName] as? String
+                    } else {
+                        return uniqueIdentifier(for: $0)
+                    }
+                }
+                else
+                {
+                    return nil
                 }
             }
             
