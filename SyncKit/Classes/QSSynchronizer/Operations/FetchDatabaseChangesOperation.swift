@@ -23,29 +23,29 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         self.database = database
         self.completion = completion
         super.init()
-        debugPrint("FetchDatabaseChangesOperation:", self)
+        debugPrint(self.isShared(),"FetchDatabaseChangesOperation:", self)
     }
     
     override public func start() {
-        debugPrint("FetchDatabaseChangesOperation.start:", self)
+        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.start:", self)
         super.start()
 
         let databaseChangesOperation = CKFetchDatabaseChangesOperation(previousServerChangeToken: databaseToken)
         databaseChangesOperation.fetchAllChanges = true
 
         databaseChangesOperation.recordZoneWithIDChangedBlock = { zoneID in
-            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDChangedBlock:", self)
+            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.recordZoneWithIDChangedBlock:", self)
             self.changedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.recordZoneWithIDWasDeletedBlock = { zoneID in
-            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDWasDeletedBlock:", self)
+            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.recordZoneWithIDWasDeletedBlock:", self)
             self.deletedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.fetchDatabaseChangesCompletionBlock = { serverChangeToken, moreComing, operationError in
 
-            debugPrint("FetchDatabaseChangesOperation.fetchDatabaseChangesCompletionBlock:", self, ", more coming:", moreComing)
+            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.fetchDatabaseChangesCompletionBlock:", self, ", more coming:", moreComing)
             if !moreComing {
                 if operationError == nil {
                     self.completion(serverChangeToken, self.changedZoneIDs, self.deletedZoneIDs)
@@ -56,18 +56,26 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         }
         
         databaseChangesOperation.completionBlock = {
-            debugPrint("FetchDatabaseChangesOperation.completionBlock:", self)
+            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.completionBlock:", self)
         }
 
-        debugPrint("FetchDatabaseChangesOperation.will addOperation:", self)
+        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.will addOperation:", self)
 
         internalOperation = databaseChangesOperation
         database.add(databaseChangesOperation)
     }
     
     override public func cancel() {
-        debugPrint("FetchDatabaseChangesOperation.cancel")
+        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.cancel")
         internalOperation?.cancel()
         super.cancel()
+    }
+    
+    func isShared() -> String {
+        if self.database.databaseScope == .shared
+        {
+            return "shared"
+        }
+        return "private"
     }
 }
