@@ -11,7 +11,7 @@ import CloudKit
 extension CloudKitSynchronizer {
     
     func performSynchronization() {
-        debugPrint("performSynchronization")
+        debugPrint(self.syncPhaseDescription(), "performSynchronization")
         dispatchQueue.async {
             self.postNotification(.SynchronizerWillSynchronize)
             self.serverChangeToken = self.storedDatabaseToken
@@ -45,7 +45,7 @@ extension CloudKitSynchronizer {
             self.completion?(error)
             self.completion = nil
             
-            debugPrint("QSCloudKitSynchronizer >> Finishing synchronization:", self)
+            debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Finishing synchronization:", self)
         }
     }
 }
@@ -172,7 +172,7 @@ extension CloudKitSynchronizer {
 extension CloudKitSynchronizer {
     
     func fetchChanges() {
-        debugPrint("fetchChanges: ", self)
+        debugPrint(self.syncPhaseDescription(), "fetchChanges: ", self)
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -197,9 +197,9 @@ extension CloudKitSynchronizer {
     
     func fetchDatabaseChanges(completion: @escaping (CKServerChangeToken?, Error?) -> ()) {
         
-        debugPrint("fetchDatabaseChanges: ", self)
+        debugPrint(self.syncPhaseDescription(), "fetchDatabaseChanges: ", self)
         let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (token, changedZoneIDs, deletedZoneIDs) in
-            debugPrint("fetchDatabaseChanges.completion: ", self)
+            debugPrint(self.syncPhaseDescription(), "fetchDatabaseChanges.completion: ", self)
             self.dispatchQueue.async {
                 self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
                 
@@ -229,10 +229,10 @@ extension CloudKitSynchronizer {
     }
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
-        debugPrint("fetchZoneChanges: ", self, activeZoneTokens)
+        debugPrint(self.syncPhaseDescription(), "fetchZoneChanges: ", self, activeZoneTokens)
         let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: nil) { (zoneResults) in
             
-            debugPrint("fetchZoneChanges.completion: ", self)
+            debugPrint(self.syncPhaseDescription(), "fetchZoneChanges.completion: ", self)
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var error: Error? = nil
@@ -251,8 +251,8 @@ extension CloudKitSynchronizer {
                             break
                         }
                     } else {
-                        debugPrint("QSCloudKitSynchronizer >> Downloaded \(result.downloadedRecords.count) changed records >> from zone \(zoneID.description)")
-                        debugPrint("QSCloudKitSynchronizer >> Downloaded \(result.deletedRecordIDs.count) deleted record IDs >> from zone \(zoneID.description)")
+                        debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Downloaded \(result.downloadedRecords.count) changed records >> from zone \(zoneID.description)")
+                        debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Downloaded \(result.deletedRecordIDs.count) deleted record IDs >> from zone \(zoneID.description)")
                         self.activeZoneTokens[zoneID] = result.serverChangeToken
                         adapter?.saveChanges(in: result.downloadedRecords)
                         adapter?.deleteRecords(with: result.deletedRecordIDs)
@@ -274,7 +274,7 @@ extension CloudKitSynchronizer {
     }
     
     func mergeChanges(completion: @escaping (Error?)->()) {
-        debugPrint("mergeChanges:", self)
+        debugPrint(self.syncPhaseDescription(), "mergeChanges:", self)
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -311,7 +311,7 @@ extension CloudKitSynchronizer {
 extension CloudKitSynchronizer {
     
     func uploadChanges() {
-        debugPrint("uploadChanges")
+        debugPrint(self.syncPhaseDescription(), "uploadChanges")
         guard cancelSync == false else {
             finishSynchronization(error: SyncError.cancelled)
             return
@@ -397,6 +397,7 @@ extension CloudKitSynchronizer {
     }
     
     func setupZoneAndUploadRecords(adapter: ModelAdapter, completion: @escaping (Error?)->()) {
+        debugPrint(self.syncPhaseDescription(), "setupZoneAndUploadRecords")
         setupRecordZoneIfNeeded(adapter: adapter) { (error) in
             
             guard error == nil else { completion(error); return }
@@ -445,12 +446,12 @@ extension CloudKitSynchronizer {
         
         let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
         
-        debugPrint("will create modifyRecordsOperation ", adapter.recordZoneID)
+        debugPrint(self.syncPhaseDescription(), "will create modifyRecordsOperation ", adapter.recordZoneID)
         modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
             
             self.dispatchQueue.async {
                 
-                debugPrint("modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
+                debugPrint(self.syncPhaseDescription(), "modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
                 if let error = operationError {
                     debugPrint("(error) successfully uploaded records:", savedRecords?.count ?? 0, "deleted records:", deletedRecordIDs?.count ?? 0)
 
@@ -490,10 +491,11 @@ extension CloudKitSynchronizer {
             return
         }
         
+        debugPrint(self.syncPhaseDescription(), "will create (delete) modifyRecordsOperation ", adapter.recordZoneID)
         let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
         modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
             self.dispatchQueue.async {
-                debugPrint("QSCloudKitSynchronizer >> Deleted \(recordCount) records")
+                debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Deleted \(recordCount) records")
                 
                 if let error = operationError,
                     self.isLimitExceededError(error as NSError) {
@@ -516,10 +518,11 @@ extension CloudKitSynchronizer {
     // MARK: - 
     
     func updateTokens() {
+        debugPrint(self.syncPhaseDescription(), "will create updateTokens operation")
         let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (databaseToken, changedZoneIDs, deletedZoneIDs) in
             self.dispatchQueue.async {
                 self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
-                debugPrint("updateTokens. changedZoneIDs: ", changedZoneIDs)
+                debugPrint(self.syncPhaseDescription(), "updateTokens. changedZoneIDs: ", changedZoneIDs)
                 if changedZoneIDs.count > 0 {
                     let zoneIDs = self.loadTokens(for: changedZoneIDs, loadAdapters: false)
                     self.updateServerToken(for: zoneIDs, completion: { (needsToFetchChanges) in
@@ -541,7 +544,7 @@ extension CloudKitSynchronizer {
     func updateServerToken(for recordZoneIDs: [CKRecordZone.ID], completion: @escaping (Bool)->()) {
         
         // If we found a new record zone at this point then needsToFetchChanges=true
-        debugPrint("updateServerToken")
+        debugPrint(self.syncPhaseDescription(), "updateServerToken")
         var hasAllTokens = true
         for zoneID in recordZoneIDs {
             if activeZoneTokens[zoneID] == nil {
@@ -553,7 +556,9 @@ extension CloudKitSynchronizer {
             return
         }
         
+        debugPrint(self.syncPhaseDescription(), "will create updateServerToken operation")
         let operation = FetchZoneChangesOperation(database: database, zoneIDs: recordZoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: ["recordID", CloudKitSynchronizer.deviceUUIDKey]) { (zoneResults) in
+            debugPrint(self.syncPhaseDescription(), "updateServerToken operation completion")
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var needsToRefetch = false
@@ -580,5 +585,15 @@ extension CloudKitSynchronizer {
             }
         }
         runOperation(operation)
+    }
+    
+    private func syncPhaseDescription() -> String {
+        var sharedOrPrivate = "private"
+        if self.database.databaseScope == .shared
+        {
+            sharedOrPrivate = "shared"
+        }
+        let syncPhaseDescription = "syncPhase_" + sharedOrPrivate
+        return syncPhaseDescription
     }
 }

@@ -108,6 +108,8 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
         operation.recordZoneFetchCompletionBlock = {
             zoneID, serverChangeToken, clientChangeTokenData, moreComing, recordZoneError in
             
+            debugPrint(self.syncPhaseDescription(),"FetchZoneChangesOperation.recordZoneFetchCompletionBlock:", self, ", more coming:", moreComing)
+
             self.dispatchQueue.async {
                 
                 let results = self.zoneResults[zoneID]!
@@ -125,6 +127,7 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
         
         operation.fetchRecordZoneChangesCompletionBlock = { operationError in
             
+            debugPrint(self.syncPhaseDescription(),"FetchZoneChangesOperation.fetchRecordZoneChangesCompletionBlock:", self, operationError)
             self.dispatchQueue.async {
                 if let error = operationError,
                     (error as NSError).code != CKError.partialFailure.rawValue { // Partial errors are returned per zone
@@ -140,6 +143,8 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
             }
         }
         
+        debugPrint(self.syncPhaseDescription(),"FetchZoneChangesOperation.will addOperation:", self)
+        
         internalOperation = operation
         self.database.add(operation)
     }
@@ -148,4 +153,15 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
         internalOperation?.cancel()
         super.cancel()
     }
+    
+    private func syncPhaseDescription() -> String {
+        var sharedOrPrivate = "private"
+        if self.database.databaseScope == .shared
+        {
+            sharedOrPrivate = "shared"
+        }
+        let syncPhaseDescription = "syncPhase_" + sharedOrPrivate
+        return syncPhaseDescription
+    }
+
 }

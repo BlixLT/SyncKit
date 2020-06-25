@@ -23,29 +23,29 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         self.database = database
         self.completion = completion
         super.init()
-        debugPrint(self.isShared(),"FetchDatabaseChangesOperation:", self)
+        debugPrint("FetchDatabaseChangesOperation:", self)
     }
     
     override public func start() {
-        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.start:", self)
+        debugPrint("FetchDatabaseChangesOperation.start:", self)
         super.start()
 
         let databaseChangesOperation = CKFetchDatabaseChangesOperation(previousServerChangeToken: databaseToken)
         databaseChangesOperation.fetchAllChanges = true
 
         databaseChangesOperation.recordZoneWithIDChangedBlock = { zoneID in
-            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.recordZoneWithIDChangedBlock:", self)
+            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDChangedBlock:", self)
             self.changedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.recordZoneWithIDWasDeletedBlock = { zoneID in
-            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.recordZoneWithIDWasDeletedBlock:", self)
+            debugPrint("FetchDatabaseChangesOperation.recordZoneWithIDWasDeletedBlock:", self)
             self.deletedZoneIDs.append(zoneID)
         }
 
         databaseChangesOperation.fetchDatabaseChangesCompletionBlock = { serverChangeToken, moreComing, operationError in
 
-            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.fetchDatabaseChangesCompletionBlock:", self, ", more coming:", moreComing)
+            debugPrint(self.syncPhaseDescription(),"FetchDatabaseChangesOperation.fetchDatabaseChangesCompletionBlock:", self, ", more coming:", moreComing)
             if !moreComing {
                 if operationError == nil {
                     self.completion(serverChangeToken, self.changedZoneIDs, self.deletedZoneIDs)
@@ -56,26 +56,28 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         }
         
         databaseChangesOperation.completionBlock = {
-            debugPrint(self.isShared(),"FetchDatabaseChangesOperation.completionBlock:", self)
+            debugPrint(self.syncPhaseDescription(),"FetchDatabaseChangesOperation.completionBlock:", self)
         }
 
-        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.will addOperation:", self)
+        debugPrint(self.syncPhaseDescription(),"FetchDatabaseChangesOperation.will addOperation:", self)
 
         internalOperation = databaseChangesOperation
         database.add(databaseChangesOperation)
     }
     
     override public func cancel() {
-        debugPrint(self.isShared(),"FetchDatabaseChangesOperation.cancel")
+        debugPrint(self.syncPhaseDescription(),"FetchDatabaseChangesOperation.cancel")
         internalOperation?.cancel()
         super.cancel()
     }
     
-    func isShared() -> String {
+    func syncPhaseDescription() -> String {
+        var sharedOrPrivate = "private"
         if self.database.databaseScope == .shared
         {
-            return "shared"
+            sharedOrPrivate = "shared"
         }
-        return "private"
+        let syncPhaseDescription = "syncPhase_" + sharedOrPrivate
+        return syncPhaseDescription
     }
 }
