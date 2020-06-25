@@ -31,6 +31,7 @@ public class FetchDatabaseChangesOperation: CloudKitSynchronizerOperation {
         super.start()
 
         let databaseChangesOperation = CKFetchDatabaseChangesOperation(previousServerChangeToken: databaseToken)
+        databaseChangesOperation.qualityOfService = .userInitiated
         databaseChangesOperation.fetchAllChanges = true
 
         databaseChangesOperation.recordZoneWithIDChangedBlock = { zoneID in

@@ -72,6 +72,7 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
         }
         
         let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: zones, optionsByRecordZoneID: zoneOptions)
+        operation.qualityOfService = .userInitiated
         operation.fetchAllChanges = false
         
         operation.recordChangedBlock = { record in
