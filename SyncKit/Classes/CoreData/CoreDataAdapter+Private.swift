@@ -343,6 +343,7 @@ extension CoreDataAdapter {
                 {
                     ddPrint("alraedy included. duplicate?")
                 }
+                var nilRecordsIdentifiers = [String]()
                 while entity != nil && entity.entityState == state && !includedEntityIDs.contains(entity.identifier!) {
                     var parentEntity: QSSyncedEntity? = nil
                     if let index = pending.firstIndex(of: entity) {
@@ -358,9 +359,16 @@ extension CoreDataAdapter {
                     }
                     else
                     {
-                        debugPrint("record is nil: %@", entity!)
+                        if (entity.identifier != nil)
+                        {
+                            nilRecordsIdentifiers.append(entity.identifier!)
+                        }
                         entity = nil
                     }
+                }
+                if (nilRecordsIdentifiers.count > 0)
+                {
+                    debugPrint("records are nil for identifiers:", nilRecordsIdentifiers)
                 }
             }
         }
