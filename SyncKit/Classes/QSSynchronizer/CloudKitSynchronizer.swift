@@ -228,15 +228,18 @@ public class CloudKitSynchronizer: NSObject {
     @objc
     public func eraseLocalMetadata() {
 
+        debugPrint("eraseLocalMetadata")
         cancelSynchronization()
         dispatchQueue.async {
             self.storedDatabaseToken = nil
             self.clearAllStoredSubscriptionIDs()
             self.deviceUUID = nil
+            debugPrint("will remove adapters")
             self.modelAdapters.forEach {
                 $0.deleteChangeTracking()
                 self.removeModelAdapter($0)
             }
+            debugPrint("did remove adapters")
         }
     }
     
