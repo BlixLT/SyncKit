@@ -195,6 +195,12 @@ public class CloudKitSynchronizer: NSObject {
             return
         }
         debugPrint("CloudKitSynchronizer >> Initiating synchronization, old completion:", self.completion)
+        guard self.completion == nil else {
+            debugPrint("old completion was not called yet. Cannot start new sync")
+            completion?(SyncError.alreadySyncing)
+            return
+        }
+
         cancelSync = false
         syncing = true
         self.completion = completion
