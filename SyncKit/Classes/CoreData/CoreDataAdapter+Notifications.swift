@@ -43,6 +43,8 @@ extension CoreDataAdapter {
                 }
             }
             
+            let allUpdateObjectIDs = updated.compactMap { self.uniqueIdentifier(for: $0) }
+            
             let deletedIDs: [String] = targetContext.deletedObjects.compactMap {
 
                 if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
@@ -62,6 +64,15 @@ extension CoreDataAdapter {
                 else
                 {
                     return nil
+                }
+            }
+
+            var inserted = targetContext.insertedObjects
+            let insertedMutable = NSMutableSet()
+            inserted.forEach {
+                if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
+                {
+                    insertedMutable.add($0)
                 }
             }
             
@@ -91,10 +102,68 @@ extension CoreDataAdapter {
                     entity.updatedDate = NSDate()
                 }
                 
-                debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updated.count)
-                debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
+                // get trackedObjectIDs
+                let trackedObjects = self.fetchEntities(originObjectIDs:allUpdateObjectIDs)
+                let trackedObjectIDs = trackedObjects.compactMap { $0.originObjectID }
                 
-                self.savePrivateContext()
+                self.targetContext.perform {
+                    
+                    let updatedMutable = NSMutableSet()
+                    updated.forEach {
+                        if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
+                        {
+                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
+                            {
+                                updatedMutable.add($0)
+                            }
+                            else
+                            {
+                                insertedMutable.add($0)
+                            }
+                        }
+                        else
+                        {
+                            // doesnt work if there are objects from different owners with the same uniqueID, will mark them as deleted in objectsDidChange method (when owner changes)
+//                            if let identifier = self.uniqueIdentifier(for: $0), trackedObjectIDs.contains(identifier)
+//                            {
+//                                deletedIDs.append(identifier)
+//                            }
+                        }
+                    }
+
+                    inserted = insertedMutable as! Set<NSManagedObject>
+
+                    var insertedIdentifiersAndEntityNames = [String: String]()
+                    inserted.forEach {
+                        if let entityName = $0.entity.name,
+                            let identifier = self.uniqueIdentifier(for: $0) {
+                            insertedIdentifiersAndEntityNames[identifier] = entityName
+                        }
+                    }
+                    
+                    let updatedCount = updatedMutable.count
+                    
+                    if (self.privateContext == nil)
+                    {
+                        // adapter is being destroyed
+                        return;
+                    }
+                    self.privateContext.perform {
+                        insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
+                            let entity = self.syncedEntity(withOriginIdentifier: identifier)
+                            if entity == nil {
+                                self.createSyncedEntity(identifier: identifier, entityName: entityName)
+                            }
+                        })
+                        
+                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld insertions", insertedIdentifiersAndEntityNames.count)
+                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updated.count)
+                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
+                        
+                        self.savePrivateContext()
+                        
+                    }
+                }
             }
         }
     }
