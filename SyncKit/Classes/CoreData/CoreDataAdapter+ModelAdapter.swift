@@ -387,6 +387,10 @@ extension CoreDataAdapter: ModelAdapter {
             return
         }
         privateContext.perform {
+            guard self.privateContext != nil else {
+                completion(nil, nil)
+                return
+            }
             if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
                 record = self.storedShare(for: entity)
             }
