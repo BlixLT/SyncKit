@@ -287,4 +287,12 @@ public class CloudKitSynchronizer: NSObject {
     public func removeModelAdapter(_ adapter: ModelAdapter) {
         modelAdapterDictionary.removeValue(forKey: adapter.recordZoneID)
     }
+    
+    @objc
+    public func userDidAcceptShare() {
+        // reset deviceIdentifiers. Ortherwise if share is being accepted second time, earlier changes made on this device will not be re-downloaded
+        deviceUUID = nil
+        _deviceIdentifier = nil
+    }
+
 }
