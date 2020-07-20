@@ -22,7 +22,12 @@ extension CoreDataAdapter {
     func configureImportContext() {
         debugPrint("configureImportContext", self.recordZoneID);
         targetImportContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-        targetImportContext.parent = targetContext
+        targetImportContext.persistentStoreCoordinator = targetContext.persistentStoreCoordinator;
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(targetImportContextDidSave(notification:)),
+                                               name: .NSManagedObjectContextDidSave,
+                                               object: targetImportContext)
+
     }
     
     func clearImportContext() {
@@ -30,8 +35,15 @@ extension CoreDataAdapter {
         guard let targetImportContext = targetImportContext else { return }
         targetImportContext.performAndWait {
             self.targetImportContext.reset()
+            NotificationCenter.default.removeObserver(self, name: .NSManagedObjectContextDidSave, object: self.targetImportContext)
         }
         self.targetImportContext = nil
+    }
+    
+    @objc func targetImportContextDidSave(notification: Notification) {
+        self.targetImportContext.perform {
+            NotificationCenter.default.post(name: Notification.Name("CoreDataAdapterDidImportChangesNotification"), object: self.targetImportContext, userInfo:notification.userInfo);
+        }
     }
     
     func deleteAllPendingRelationships() {
@@ -693,10 +705,10 @@ extension CoreDataAdapter {
                 return
             }
             
-            self.isMergingImportedChanges = true
+//            self.isMergingImportedChanges = true
             debugPrint("Now importing")
             self.delegate.coreDataAdapter(self, didImportChanges: self.targetImportContext, completion: { (error) in
-                self.isMergingImportedChanges = false
+//                self.isMergingImportedChanges = false
                 debugPrint("Saved imported changes")
                 completion(error)
             })
