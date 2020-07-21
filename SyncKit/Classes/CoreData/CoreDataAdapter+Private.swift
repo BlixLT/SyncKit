@@ -22,6 +22,7 @@ extension CoreDataAdapter {
     func configureImportContext() {
         debugPrint("configureImportContext", self.recordZoneID);
         targetImportContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        targetImportContext.mergePolicy = NSMergePolicy(merge: NSMergePolicyType.mergeByPropertyObjectTrumpMergePolicyType)
         targetImportContext.persistentStoreCoordinator = targetContext.persistentStoreCoordinator;
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(targetImportContextDidSave(notification:)),
