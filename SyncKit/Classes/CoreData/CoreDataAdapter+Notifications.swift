@@ -91,6 +91,7 @@ extension CoreDataAdapter {
                     }
                     entity.changedKeysArray = Array(changedKeys)
                     if entity.entityState == .synced && !entity.changedKeysArray.isEmpty {
+                        debugPrint(self.isShared(), "mark as changed:", entity.identifier ?? "n/a")
                         entity.entityState = .changed
                     }
                     entity.updatedDate = NSDate()
@@ -156,9 +157,9 @@ extension CoreDataAdapter {
                             }
                         })
                         
-                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld insertions", insertedIdentifiersAndEntityNames.count)
-                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updated.count)
-                        debugPrint("QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
+                        debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld insertions", insertedIdentifiersAndEntityNames.count)
+                        debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updated.count)
+                        debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
                         
                         self.savePrivateContext()
                         
@@ -250,7 +251,7 @@ extension CoreDataAdapter {
                             }
                         })
                         
-                        debugPrint("QSCloudKitSynchronizer >> Did Save >> Tracking %ld insertions", inserted?.count ?? 0)
+                        debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Did Save >> Tracking %ld insertions", inserted?.count ?? 0)
 
                         self.savePrivateContext()
                         
@@ -294,7 +295,7 @@ extension CoreDataAdapter {
         let deleted = deletedMutable as! Set<NSManagedObject>
 
         let notificationWithObjects = Notification(name: .NSManagedObjectContextDidSave, object: notification.object, userInfo: [NSInsertedObjectsKey : inserted, NSUpdatedObjectsKey : updated, NSDeletedObjectsKey : deleted])
-        
+        debugPrint(self.isShared(), "mncContextNeedsUIRefresh. inserted:", (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>)?.count ?? "no inserted", (notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>)?.count ?? "no updated", (notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject>)?.count ?? "no deleted")
         self.targetContextDidSave(notification: notificationWithObjects)
     }
 
@@ -303,6 +304,10 @@ extension CoreDataAdapter {
         if isMergingImportedChanges
         {
             debugPrint("targetContextObjectsDidChange.ignore",  notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? "no inserted", notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? "no updated", notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? "no deleted")
+        }
+        else
+        {
+            debugPrint(self.isShared(), "targetContextObjectsDidChange")
         }
         if let object = notification.object as? NSManagedObjectContext, object == targetContext {
             let updated = notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>
@@ -324,7 +329,7 @@ extension CoreDataAdapter {
                             return;
                         }
                         self.privateContext.perform {
-                            debugPrint("changedKeys contains owner. mark as new")
+                            debugPrint(self.isShared(), "changedKeys contains owner. mark as new")
                             if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier)
                             {
                                 entity.entityState = .deleted
@@ -343,7 +348,7 @@ extension CoreDataAdapter {
                         if let identifier = self.uniqueIdentifier(for:$0),
                             (oldIdentifier.count > 0 && identifier.count > 0)
                         {
-                            debugPrint("oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
+                            debugPrint(self.isShared(), "oldIdentifier ", oldIdentifier, "-> newIdentifier ", identifier)
                             if (self.privateContext == nil)
                             {
                                 // adapter is being destroyed
@@ -351,6 +356,7 @@ extension CoreDataAdapter {
                             }
                             self.privateContext.perform {
                                  if let entity = self.syncedEntity(withOriginIdentifier: oldIdentifier) {
+                                    debugPrint(self.isShared(), "marking as new with identifier:", identifier)
                                     entity.entityState = .new
                                     entity.changedKeys = nil
                                     entity.record = nil

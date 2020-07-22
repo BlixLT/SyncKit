@@ -361,6 +361,7 @@ extension CoreDataAdapter {
     
     func recordsToUpload(state: SyncedEntityState, limit: Int) -> [CKRecord] {
         var recordsArray = [CKRecord]()
+        debugPrint("getting recordsToUpload with state:", state)
         privateContext.performAndWait {
             let entities = sortedEntities(entities:fetchEntities(state: state))
             var pending : [QSSyncedEntity] = Array(entities.reversed()) // loop takes objects from the back, therefore we need reversed array here
@@ -400,6 +401,7 @@ extension CoreDataAdapter {
                 }
             }
         }
+        debugPrint("return recordsToUpload with state:", state, "count:", recordsArray.count)
         return recordsArray
     }
     
@@ -1091,6 +1093,7 @@ extension CoreDataAdapter {
                         record!.parent = CKRecord.Reference(recordID: sharedDataRecord.recordID, action: .none)
                         if ($0.entityState == .synced)
                         {
+                            debugPrint("update shareble. mark as changed:", entity.identifier ?? "n/a")
                             $0.entityState = .changed
                         }
                     }
