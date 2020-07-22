@@ -42,8 +42,15 @@ extension CoreDataAdapter {
     }
     
     @objc func targetImportContextDidSave(notification: Notification) {
-        self.targetImportContext.perform {
-            NotificationCenter.default.post(name: Notification.Name("CoreDataAdapterDidImportChangesNotification"), object: self.targetImportContext, userInfo:notification.userInfo);
+        if let context = notification.object
+        {
+            (context as! NSManagedObjectContext).perform {
+                NotificationCenter.default.post(name: Notification.Name("CoreDataAdapterDidImportChangesNotification"), object: context, userInfo:notification.userInfo);
+            }
+        }
+        else
+        {
+            debugPrint("targetImportContextDidSave.cannot find context")
         }
     }
     
