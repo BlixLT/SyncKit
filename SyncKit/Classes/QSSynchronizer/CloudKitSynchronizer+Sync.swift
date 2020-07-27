@@ -497,7 +497,7 @@ extension CloudKitSynchronizer {
         modifyRecordsOperation.qualityOfService = .userInitiated
         modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
             self.dispatchQueue.async {
-                debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Deleted \(recordCount) records")
+                debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Deleted \(deletedRecordIDs?.count ?? 0) records of \(recordCount)")
                 
                 if let error = operationError,
                     self.isLimitExceededError(error as NSError) {
@@ -507,6 +507,11 @@ extension CloudKitSynchronizer {
                     self.batchSize = self.batchSize + 5
                 }
                 
+                if let error = operationError, (error as NSError).domain == CKErrorDomain
+                {
+                    debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs)
+                }
+                    
                 adapter.didDelete(recordIDs: deletedRecordIDs ?? [])
                 
                 completion(operationError)
