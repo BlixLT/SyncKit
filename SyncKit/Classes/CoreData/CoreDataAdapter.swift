@@ -243,8 +243,15 @@ extension CoreDataAdapter {
                     $0[primaryKey]
                 })
                 self.privateContext?.performAndWait {
+                    // sometimes mncContextNeedsUIRefresh arrives earlier and some objects might be craeted already
+                    let existingSyncedEntities = self.fetchEntities(originObjectIDs: identifiers ?? [])
+                    let existingSyncedEntitiesObjectIDs = existingSyncedEntities.compactMap { $0.originObjectID }
+
                     identifiers?.forEach {
-                        self.createSyncedEntity(identifier: $0, entityName: entityName)
+                        if !existingSyncedEntitiesObjectIDs.contains($0)
+                        {
+                            self.createSyncedEntity(identifier: $0, entityName: entityName)
+                        }
                     }
                     self.savePrivateContext()
                 }
