@@ -366,9 +366,10 @@ extension CoreDataAdapter {
         qsRecord.encodedRecord = QSCoder.shared.encode(share) as NSData
     }
     
-    func recordsToUpload(state: SyncedEntityState, limit: Int) -> [CKRecord] {
+    func recordsToUpload(state: SyncedEntityState, limit: Int) throws -> [CKRecord] {
         var recordsArray = [CKRecord]()
         debugPrint("getting recordsToUpload with state:", state)
+        var duplicateDetected = false
         privateContext.performAndWait {
             let entities = sortedEntities(entities:fetchEntities(state: state))
             var pending : [QSSyncedEntity] = Array(entities.reversed()) // loop takes objects from the back, therefore we need reversed array here
@@ -378,6 +379,10 @@ extension CoreDataAdapter {
                 if (entity != nil && includedEntityIDs.contains(entity.identifier!))
                 {
                     ddPrint("alraedy included. duplicate?")
+                    duplicateDetected = true
+                    if let index = pending.firstIndex(of: entity) {
+                        pending.remove(at: index)
+                    }
                 }
                 var nilRecordsIdentifiers = [String]()
                 while entity != nil && entity.entityState == state && !includedEntityIDs.contains(entity.identifier!) {
@@ -407,6 +412,10 @@ extension CoreDataAdapter {
                     debugPrint("records are nil for identifiers:", nilRecordsIdentifiers)
                 }
             }
+        }
+        if (duplicateDetected)
+        {
+            throw CloudKitSynchronizer.SyncError.corruptedData
         }
         debugPrint("return recordsToUpload with state:", state, "count:", recordsArray.count)
         return recordsArray

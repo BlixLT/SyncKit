@@ -436,50 +436,56 @@ extension CloudKitSynchronizer {
     }
     
     func uploadRecords(adapter: ModelAdapter,  completion: @escaping (Error?)->()) {
-        let records = adapter.recordsToUpload(limit: batchSize)
-        let recordCount = records.count
-        let requestedBatchSize = batchSize
-        guard recordCount > 0 else { completion(nil); return }
-        
-        //Add metadata: device UUID and model version
-        addMetadata(to: records)
-        
-        let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
-        modifyRecordsOperation.qualityOfService = .userInitiated
-
-        debugPrint(self.syncPhaseDescription(), "will create modifyRecordsOperation ", adapter.recordZoneID)
-        modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+        do
+        {
+            let records = try adapter.recordsToUpload(limit: batchSize)
+            let recordCount = records.count
+            let requestedBatchSize = batchSize
+            guard recordCount > 0 else { completion(nil); return }
             
-            self.dispatchQueue.async {
-                
-                debugPrint(self.syncPhaseDescription(), "modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
-                if let error = operationError {
-                    debugPrint("(error) successfully uploaded records:", savedRecords?.count ?? 0, "deleted records:", deletedRecordIDs?.count ?? 0)
+            //Add metadata: device UUID and model version
+            addMetadata(to: records)
+            
+            let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+            modifyRecordsOperation.qualityOfService = .userInitiated
 
-                    if self.isLimitExceededError(error as NSError) {
-                        self.batchSize = self.batchSize / 2
-                    }
-                    completion(error)
-                } else {
-                    if self.batchSize < CloudKitSynchronizer.defaultBatchSize {
-                        self.batchSize = self.batchSize + 5
-                    }
+            debugPrint(self.syncPhaseDescription(), "will create modifyRecordsOperation ", adapter.recordZoneID)
+            modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+                
+                self.dispatchQueue.async {
                     
-                    adapter.didUpload(savedRecords: savedRecords ?? [])
-                    
-                    debugPrint("QSCloudKitSynchronizer >> Uploaded \(savedRecords?.count ?? 0) records")
-                    
-                    if recordCount >= requestedBatchSize {
-                        self.uploadRecords(adapter: adapter, completion: completion)
+                    debugPrint(self.syncPhaseDescription(), "modifyRecordsCompletionBlock.error:", operationError ?? "nil", adapter.recordZoneID)
+                    if let error = operationError {
+                        debugPrint("(error) successfully uploaded records:", savedRecords?.count ?? 0, "deleted records:", deletedRecordIDs?.count ?? 0)
+
+                        if self.isLimitExceededError(error as NSError) {
+                            self.batchSize = self.batchSize / 2
+                        }
+                        completion(error)
                     } else {
-                        completion(nil)
+                        if self.batchSize < CloudKitSynchronizer.defaultBatchSize {
+                            self.batchSize = self.batchSize + 5
+                        }
+                        
+                        adapter.didUpload(savedRecords: savedRecords ?? [])
+                        
+                        debugPrint("QSCloudKitSynchronizer >> Uploaded \(savedRecords?.count ?? 0) records")
+                        
+                        if recordCount >= requestedBatchSize {
+                            self.uploadRecords(adapter: adapter, completion: completion)
+                        } else {
+                            completion(nil)
+                        }
                     }
                 }
             }
+            
+            currentOperation = modifyRecordsOperation
+            database.add(modifyRecordsOperation)
+        } catch {
+            debugPrint("error uploading records")
+            completion(error)
         }
-        
-        currentOperation = modifyRecordsOperation
-        database.add(modifyRecordsOperation)
     }
     
     func uploadDeletions(adapter: ModelAdapter, completion: @escaping (Error?)->()) {

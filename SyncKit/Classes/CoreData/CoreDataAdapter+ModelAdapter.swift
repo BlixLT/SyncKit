@@ -174,16 +174,20 @@ extension CoreDataAdapter: ModelAdapter {
         }
     }
     
-    public func recordsToUpload(limit: Int) -> [CKRecord] {
+    public func recordsToUpload(limit: Int) throws -> [CKRecord] {
         guard privateContext != nil else { return [] }
         var uploadingState = SyncedEntityState.new
         var recordsArray = [CKRecord]()
         let limit = limit == 0 ? Int.max : limit
         var innerLimit = limit
         while recordsArray.count < limit && uploadingState.rawValue < SyncedEntityState.deleted.rawValue {
-            recordsArray.append(contentsOf: self.recordsToUpload(state: uploadingState, limit: innerLimit))
-            uploadingState = nextStateToSync(after: uploadingState)
-            innerLimit = limit - recordsArray.count
+            do {
+                recordsArray.append(contentsOf: try self.recordsToUpload(state: uploadingState, limit: innerLimit))
+                uploadingState = nextStateToSync(after: uploadingState)
+                innerLimit = limit - recordsArray.count
+            } catch {
+                throw error
+            }
         }
         return recordsArray
     }

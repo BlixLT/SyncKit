@@ -73,7 +73,7 @@ public extension Notification.Name {
      *
      *  @return Array of `CKRecord`.
      */
-    func recordsToUpload(limit: Int) -> [CKRecord]
+    func recordsToUpload(limit: Int) throws -> [CKRecord]
     
     /**
      *  Tells the change manager that these records were uploaded successfully.

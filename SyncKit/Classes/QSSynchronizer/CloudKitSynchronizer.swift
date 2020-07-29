@@ -83,6 +83,10 @@ public class CloudKitSynchronizer: NSObject {
          */
         case recordNotFound
         /**
+         *  Something wrong with framework local cache (for example multiple entities with same identifiers) -> needs to inform user to resync
+         */
+        case corruptedData
+        /**
          *  Synchronization was manually cancelled.
          */
         case cancelled
