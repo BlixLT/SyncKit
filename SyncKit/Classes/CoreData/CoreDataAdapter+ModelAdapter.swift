@@ -265,6 +265,21 @@ extension CoreDataAdapter: ModelAdapter {
         return hasEntity
     }
     
+    public func hasRecordID(_ recordID: CKRecord.ID, completion: @escaping (Bool)->()) {
+        guard privateContext != nil else {
+            completion(false)
+            return
+        }
+        
+        privateContext.perform {
+            if self.syncedEntity(withIdentifier: recordID.recordName) != nil {
+                completion(true)
+                return
+            }
+            completion(false)
+        }
+    }
+    
     public func didFinishImport(with error: Error?, clearTempFiles : Bool)
     {
         guard privateContext != nil else { return }
@@ -384,21 +399,32 @@ extension CoreDataAdapter: ModelAdapter {
             completion(nil, nil)
             return
         }
-        let objectIdentifier = threadSafePrimaryKeyValue(for: object)
-        var record: CKShare?
-        guard privateContext != nil else {
+        guard object.managedObjectContext != nil else {
             completion(nil, nil)
             return
         }
-        privateContext.perform {
+
+        object.managedObjectContext!.perform {
+            let objectIdentifier = self.uniqueIdentifier(for: object)
+            guard objectIdentifier != nil else {
+                completion(nil, nil)
+                return
+            }
+            var record: CKShare?
             guard self.privateContext != nil else {
                 completion(nil, nil)
                 return
             }
-            if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
-                record = self.storedShare(for: entity)
+            self.privateContext.perform {
+                guard self.privateContext != nil else {
+                    completion(nil, nil)
+                    return
+                }
+                if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier!) {
+                    record = self.storedShare(for: entity)
+                }
+                completion(record, nil)
             }
-            completion(record, nil)
         }
     }
 

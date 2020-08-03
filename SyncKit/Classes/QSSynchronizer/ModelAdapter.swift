@@ -104,7 +104,8 @@ public extension Notification.Name {
      *  @return Whether there is a corresponding object for this identifier.
      */
     func hasRecordID(_ recordID: CKRecord.ID) -> Bool
-    
+    func hasRecordID(_ recordID: CKRecord.ID, completion: @escaping (Bool)->())
+
     /**
      *  Tells the change manager that the current import operation finished.
      *

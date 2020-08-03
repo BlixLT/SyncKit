@@ -363,46 +363,36 @@ import CloudKit
                         {
                             debugPrint("should not stopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
                             self.saveChangesForShare(extraDataShare!, completion: { (share, saveChangesError) in
-                                var hasShareLocally : Bool = false
-                                self.modelAdapters.forEach {
-                                    if $0.hasRecordID(deletedShare.recordID)
-                                    {
-                                        hasShareLocally = true
-                                    }
-                                }
                                 
-                                if hasShareLocally
-                                {
-                                    DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
-                                        self.synchronize(completion: completion)
+                                self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
+                                    if hasShareLocally
+                                    {
+                                        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
+                                            self.synchronize(completion: completion)
+                                        }
                                     }
-                                }
-                                else
-                                {
-                                    completion!(saveChangesError)
-                                }
+                                    else
+                                    {
+                                        completion!(saveChangesError)
+                                    }
+                                })
                             })
                             return
                         }
                     }
-                    var hasShareLocally : Bool = false
-                    self.modelAdapters.forEach {
-                        if $0.hasRecordID(deletedShare.recordID)
-                        {
-                            hasShareLocally = true
-                        }
-                    }
                     
-                    if hasShareLocally
-                    {
-                        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
-                            self.synchronize(completion: completion)
+                    self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
+                        if hasShareLocally
+                        {
+                            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
+                                self.synchronize(completion: completion)
+                            }
                         }
-                    }
-                    else
-                    {
-                        completion!(nil)
-                    }
+                        else
+                        {
+                            completion!(nil)
+                        }
+                    })
                 }
                 else
                 {
@@ -457,14 +447,26 @@ import CloudKit
                             debugPrint("extra data share removed successfully remotely")
                         }
                         self.synchronize { (synchronizeSharedDataError) in
-                            var hasShareLocally : Bool = false
-                            self.modelAdapters.forEach {
-                                if $0.hasRecordID(deletedShare.recordID)
+                            self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
+                                if hasShareLocally
                                 {
-                                    hasShareLocally = true
+                                    DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3) {
+                                        self.synchronize(completion: completion)
+                                    }
                                 }
-                            }
-                            
+                                else
+                                {
+                                    completion!(synchronizeSharedDataError)
+                                }
+                            })
+                        }
+                    }
+                    self.database.add(deleteShareOperation)
+                }
+                else
+                {
+                    self.synchronize { (synchronizeSharedDataError) in
+                        self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
                             if hasShareLocally
                             {
                                 DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3) {
@@ -475,37 +477,33 @@ import CloudKit
                             {
                                 completion!(synchronizeSharedDataError)
                             }
-
-                        }
-                    }
-                    self.database.add(deleteShareOperation)
-                }
-                else
-                {
-                    self.synchronize { (synchronizeSharedDataError) in
-                        var hasShareLocally : Bool = false
-                        self.modelAdapters.forEach {
-                            if $0.hasRecordID(deletedShare.recordID)
-                            {
-                                hasShareLocally = true
-                            }
-                        }
-                        
-                        if hasShareLocally
-                        {
-                            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3) {
-                                self.synchronize(completion: completion)
-                            }
-                        }
-                        else
-                        {
-                            completion!(synchronizeSharedDataError)
-                        }
+                        })
                     }
                 }
             }
             self.database.add(operation)
         }
+    }
+
+    func hasRecordID(_ recordID: CKRecord.ID, adapters:[ModelAdapter], completion: @escaping (Bool)->()) {
+        guard let first = adapters.first else {
+            completion(false)
+            return
+        }
+        
+        first.hasRecordID(recordID, completion: { (firstHasRecordID) in
+            if firstHasRecordID
+            {
+                completion(firstHasRecordID)
+                return
+            }
+            else
+            {
+                var remaining = adapters
+                remaining.removeFirst()
+                self.hasRecordID(recordID, adapters:remaining, completion:completion)
+            }
+        })
     }
 
     func isExtraSharedDataShare(share : CKShare) -> Bool
