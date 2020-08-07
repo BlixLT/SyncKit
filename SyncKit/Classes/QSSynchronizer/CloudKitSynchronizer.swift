@@ -127,9 +127,11 @@ public class CloudKitSynchronizer: NSObject {
     internal let dispatchQueue = DispatchQueue(label: "QSCloudKitSynchronizer")
     internal let operationQueue = OperationQueue()
     internal var modelAdapterDictionary = [CKRecordZone.ID: ModelAdapter]()
+    internal var zoneIDsWithUploadedChanges = [CKRecordZone.ID]()
     internal var serverChangeToken: CKServerChangeToken?
     internal var activeZoneTokens = [CKRecordZone.ID: CKServerChangeToken]()
     internal var cancelSync = false
+    internal var shouldIgnoreChangesFromThisDevice = false
     internal var completion: ((Error?) -> ())?
     internal weak var currentOperation: Operation?
     
@@ -208,6 +210,7 @@ public class CloudKitSynchronizer: NSObject {
         cancelSync = false
         syncing = true
         self.completion = completion
+        self.shouldIgnoreChangesFromThisDevice = false
         performSynchronization()
     }
     
@@ -290,13 +293,6 @@ public class CloudKitSynchronizer: NSObject {
     @objc 
     public func removeModelAdapter(_ adapter: ModelAdapter) {
         modelAdapterDictionary.removeValue(forKey: adapter.recordZoneID)
-    }
-    
-    @objc
-    public func userDidAcceptShare() {
-        // reset deviceIdentifiers. Ortherwise if share is being accepted second time, earlier changes made on this device will not be re-downloaded
-        deviceUUID = nil
-        _deviceIdentifier = nil
     }
 
 }

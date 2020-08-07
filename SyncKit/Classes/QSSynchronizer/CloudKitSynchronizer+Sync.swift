@@ -230,9 +230,9 @@ extension CloudKitSynchronizer {
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
         debugPrint(self.syncPhaseDescription(), "fetchZoneChanges: ", self, activeZoneTokens)
-        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: nil) { (zoneResults) in
+        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: shouldIgnoreChangesFromThisDevice ? deviceIdentifier : nil, desiredKeys: nil) { (zoneResults) in
             
-            debugPrint(self.syncPhaseDescription(), "fetchZoneChanges.completion: ", self)
+            debugPrint(self.syncPhaseDescription(), "fetchZoneChanges.completion: ", self, self.shouldIgnoreChangesFromThisDevice)
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var error: Error? = nil
@@ -318,6 +318,7 @@ extension CloudKitSynchronizer {
         }
 
         postNotification(.SynchronizerWillUploadChanges)
+        self.zoneIDsWithUploadedChanges.removeAll()
         
         uploadChanges() { (error) in
             if let error = error {
@@ -445,7 +446,7 @@ extension CloudKitSynchronizer {
             
             //Add metadata: device UUID and model version
             addMetadata(to: records)
-            
+            self.zoneIDsWithUploadedChanges.append(adapter.recordZoneID)
             let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
             modifyRecordsOperation.qualityOfService = .userInitiated
 
@@ -532,14 +533,22 @@ extension CloudKitSynchronizer {
     
     func updateTokens() {
         debugPrint(self.syncPhaseDescription(), "will create updateTokens operation")
-        let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (databaseToken, changedZoneIDs, deletedZoneIDs) in
+        let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (databaseToken, changedZoneIDsImmutable, deletedZoneIDs) in
             self.dispatchQueue.async {
                 self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
+                var changedZoneIDs = changedZoneIDsImmutable
                 debugPrint(self.syncPhaseDescription(), "updateTokens. changedZoneIDs: ", changedZoneIDs)
+                self.zoneIDsWithUploadedChanges.forEach { (zoneID) in
+                    if !changedZoneIDs.contains(zoneID)
+                    {
+                        changedZoneIDs.append(zoneID)
+                    }
+                }
                 if changedZoneIDs.count > 0 {
                     let zoneIDs = self.loadTokens(for: changedZoneIDs, loadAdapters: false)
                     self.updateServerToken(for: zoneIDs, completion: { (needsToFetchChanges) in
                         if needsToFetchChanges {
+                            self.shouldIgnoreChangesFromThisDevice = true
                             self.performSynchronization()
                         } else {
                             self.storedDatabaseToken = databaseToken
