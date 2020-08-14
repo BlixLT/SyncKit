@@ -139,12 +139,7 @@ extension CoreDataAdapter {
 
                 let updatedCount = updatedMutable.count
                 
-                insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
-                    let entity = self.syncedEntity(withOriginIdentifier: identifier)
-                    if entity == nil {
-                        self.createSyncedEntity(identifier: identifier, entityName: entityName)
-                    }
-                })
+                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
                 
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld insertions", insertedIdentifiersAndEntityNames.count)
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updatedCount)
@@ -220,12 +215,7 @@ extension CoreDataAdapter {
 
                 let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || updatedCount > 0 || deletedCount > 0
 
-                insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
-                    let entity = self.syncedEntity(withOriginIdentifier: identifier)
-                    if entity == nil {
-                        self.createSyncedEntity(identifier: identifier, entityName: entityName)
-                    }
-                })
+                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
                         
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Did Save >> Tracking %ld insertions", inserted?.count ?? 0)
 
@@ -368,5 +358,37 @@ extension CoreDataAdapter {
     {
         let ckOwnerNameKey = "ckOwnerName"
         return object.value(forKey:ckOwnerNameKey)
+    }
+    
+    fileprivate func handleInsertedIdentifiersAndEntityNames(_ insertedIdentifiersAndEntityNames : [String: String])
+    {
+        let allIdentifiers = Array(insertedIdentifiersAndEntityNames.keys)
+        let syncedEntities = self.fetchEntities(originObjectIDs:allIdentifiers)
+        let deletedSyncedEntities = syncedEntities.filter { (syncedEntity) -> Bool in
+            return syncedEntity.entityState == .deleted
+        }
+        let existingIdentifiers = syncedEntities.compactMap ({ $0.originObjectID })
+        let existingDeletedIdentifiers = deletedSyncedEntities.compactMap ({ $0.originObjectID })
+        insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
+            if !existingIdentifiers.contains(identifier)
+            {
+                self.createSyncedEntity(identifier: identifier, entityName: entityName)
+            }
+            else
+            {
+                if existingDeletedIdentifiers.contains(identifier)
+                {
+                    // undo deletions fix: mark as new
+                    if let syncedEntity = self.syncedEntity(withOriginIdentifier: identifier)
+                    {
+                        debugPrint("Deleted -> New", identifier)
+                        syncedEntity.entityState = .new
+                        syncedEntity.record = nil
+                        syncedEntity.changedKeys = nil;
+                        syncedEntity.updatedDate = NSDate()
+                    }
+                }
+            }
+        })
     }
 }

@@ -145,7 +145,14 @@ extension CoreDataAdapter: ModelAdapter {
         
         privateContext.perform {
             let entities = recordIDs.compactMap { self.syncedEntity(withIdentifier: $0.recordName) }
-            self.delete(syncedEntities: entities)
+            let notNewSyncedEntities = entities.filter { (syncedEntity) -> Bool in
+                syncedEntity.entityState != .new
+            }
+            if notNewSyncedEntities.count != entities.count
+            {
+                debugPrint("deleteReocrds. ignored new records", entities.count - notNewSyncedEntities.count)
+            }
+            self.delete(syncedEntities: notNewSyncedEntities)
         }
     }
     
@@ -246,7 +253,11 @@ extension CoreDataAdapter: ModelAdapter {
         privateContext.perform {
             for recordID in recordIDs {
                 if let entity = self.syncedEntity(withIdentifier: recordID.recordName) {
-                    self.privateContext.delete(entity)
+                    // if state is new, it is undone deletion
+                    if entity.entityState != .new
+                    {
+                        self.privateContext.delete(entity)
+                    }
                 }
             }
             self.savePrivateContext()
