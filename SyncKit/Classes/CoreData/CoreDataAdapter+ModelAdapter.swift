@@ -166,7 +166,13 @@ extension CoreDataAdapter: ModelAdapter {
             self.applyPendingRelationships()
             self.mergeChangesIntoTargetContext(completion: { (error) in
                 if error != nil {
-                    self.privateContext.reset()
+                    if self.privateContext != nil
+                    {
+                        self.privateContext.perform
+                        {
+                            self.privateContext.reset()
+                        }
+                    }
                 } else {
                     if self.privateContext != nil
                     {
