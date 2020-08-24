@@ -56,6 +56,15 @@ extension CoreDataAdapter: ModelAdapter {
                     continue
                 }
                 
+                if let cachedRecord = self.storedRecord(for: syncedEntity)
+                {
+                    if (cachedRecord.recordChangeTag == record.recordChangeTag)
+                    {
+                        debugPrint("record change tokens match. ignore", record.recordID.recordName)
+                        continue
+                    }
+                }
+                
                 let query = QueryData(identifier: originObjectID,
                                       record: record,
                                       entityType: entityType,

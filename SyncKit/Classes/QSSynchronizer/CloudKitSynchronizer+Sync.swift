@@ -230,9 +230,9 @@ extension CloudKitSynchronizer {
     
     func fetchZoneChanges(_ zoneIDs: [CKRecordZone.ID], completion: @escaping (Error?)->()) {
         debugPrint(self.syncPhaseDescription(), "fetchZoneChanges: ", self, activeZoneTokens)
-        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: shouldIgnoreChangesFromThisDevice ? deviceIdentifier : nil, desiredKeys: nil) { (zoneResults) in
+        let operation = FetchZoneChangesOperation(database: database, zoneIDs: zoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: nil, desiredKeys: nil) { (zoneResults) in
             
-            debugPrint(self.syncPhaseDescription(), "fetchZoneChanges.completion: ", self, self.shouldIgnoreChangesFromThisDevice)
+            debugPrint(self.syncPhaseDescription(), "fetchZoneChanges.completion")
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
                 var error: Error? = nil
@@ -331,7 +331,7 @@ extension CloudKitSynchronizer {
                     self.finishSynchronization(error: error)
                 }
             } else {
-                self.updateTokens()
+                self.finishSynchronization(error: nil)
             }
         }
     }
@@ -531,38 +531,6 @@ extension CloudKitSynchronizer {
     
     // MARK: - 
     
-    func updateTokens() {
-        debugPrint(self.syncPhaseDescription(), "will create updateTokens operation")
-        let operation = FetchDatabaseChangesOperation(database: database, databaseToken: serverChangeToken) { (databaseToken, changedZoneIDsImmutable, deletedZoneIDs) in
-            self.dispatchQueue.async {
-                self.notifyProviderForDeletedZoneIDs(deletedZoneIDs)
-                var changedZoneIDs = changedZoneIDsImmutable
-                debugPrint(self.syncPhaseDescription(), "updateTokens. changedZoneIDs: ", changedZoneIDs)
-                self.zoneIDsWithUploadedChanges.forEach { (zoneID) in
-                    if !changedZoneIDs.contains(zoneID)
-                    {
-                        changedZoneIDs.append(zoneID)
-                    }
-                }
-                if changedZoneIDs.count > 0 {
-                    let zoneIDs = self.loadTokens(for: changedZoneIDs, loadAdapters: false)
-                    self.updateServerToken(for: zoneIDs, completion: { (needsToFetchChanges) in
-                        if needsToFetchChanges {
-                            self.shouldIgnoreChangesFromThisDevice = true
-                            self.performSynchronization()
-                        } else {
-                            self.storedDatabaseToken = databaseToken
-                            self.finishSynchronization(error: nil)
-                        }
-                    })
-                } else {
-                    self.finishSynchronization(error: nil)
-                }
-            }
-        }
-        runOperation(operation)
-    }
-    
     func updateServerToken(for recordZoneIDs: [CKRecordZone.ID], completion: @escaping (Bool)->()) {
         
         // If we found a new record zone at this point then needsToFetchChanges=true
@@ -579,7 +547,7 @@ extension CloudKitSynchronizer {
         }
         
         debugPrint(self.syncPhaseDescription(), "will create updateServerToken operation")
-        let operation = FetchZoneChangesOperation(database: database, zoneIDs: recordZoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: deviceIdentifier, desiredKeys: ["recordID", CloudKitSynchronizer.deviceUUIDKey]) { (zoneResults) in
+        let operation = FetchZoneChangesOperation(database: database, zoneIDs: recordZoneIDs, zoneChangeTokens: activeZoneTokens, modelVersion: compatibilityVersion, ignoreDeviceIdentifier: nil, desiredKeys: ["recordID", CloudKitSynchronizer.deviceUUIDKey]) { (zoneResults) in
             debugPrint(self.syncPhaseDescription(), "updateServerToken operation completion")
             self.dispatchQueue.async {
                 var pendingZones = [CKRecordZone.ID]()
