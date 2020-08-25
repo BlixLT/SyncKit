@@ -45,6 +45,58 @@ extension CoreDataAdapter {
             
             let allUpdateObjectIDs = updated.compactMap { self.uniqueIdentifier(for: $0) }
             
+            let deletedSharedTransactionAndSplitIDs: [String] = targetContext.deletedObjects.compactMap {
+                if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName()) && self.isShared()
+                {
+                    // delete deleted shared account's transactions "quietly" - without uploading deletions to cloudkit
+                    var deletedTransactionHasDeletedAccount = false
+                    let entityName = $0.entity.name
+                    if entityName == "TransactionSplit"
+                    {
+                        let committedValues = $0.committedValues(forKeys: ["transaction"])
+                        if let transaction = committedValues["transaction"] as? NSManagedObject
+                        {
+                            let committedTransactionValues = transaction.committedValues(forKeys: ["account"])
+                            if let account = committedTransactionValues["account"] as? NSManagedObject, targetContext.deletedObjects.contains(account)
+                            {
+                                deletedTransactionHasDeletedAccount = true
+                            }
+                        }
+                    }
+                    else if entityName == "Transaction" || entityName == "ScheduledTransaction"
+                    {
+                        let committedValues = $0.committedValues(forKeys: ["account"])
+                        if let account = committedValues["account"] as? NSManagedObject, targetContext.deletedObjects.contains(account)
+                        {
+                            deletedTransactionHasDeletedAccount = true
+                        }
+                    }
+                    
+                    if deletedTransactionHasDeletedAccount
+                    {
+                        if self.uniqueIdentifier(for: $0) == nil,
+                            let entityName = $0.entity.name {
+                            // Properties become nil when objects are deleted as a result of using an undo manager
+                            // Here we can retrieve their last known identifier and mark the corresponding synced
+                            // entity for deletion
+                            let identifierFieldName = self.identifierFieldName(forEntity: entityName)
+                            let committedValues = $0.committedValues(forKeys: [identifierFieldName])
+                            return committedValues[identifierFieldName] as? String
+                        } else {
+                            return uniqueIdentifier(for: $0)
+                        }
+                    }
+                    else
+                    {
+                        return nil
+                    }
+                }
+                else
+                {
+                    return nil
+                }
+            }
+            
             let deletedIDs: [String] = targetContext.deletedObjects.compactMap {
 
                 if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: $0), self.sharedZoneOwnerName())
@@ -116,6 +168,11 @@ extension CoreDataAdapter {
                     guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
                     entity.entityState = .deleted
                     entity.updatedDate = NSDate()
+                }
+                
+                deletedSharedTransactionAndSplitIDs.forEach { (identifier) in
+                    guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
+                    self.privateContext.delete(entity)
                 }
                 
                 // get trackedObjectIDs
