@@ -602,8 +602,14 @@ extension CoreDataAdapter {
                 // many-to-many NSSet
                 let identifiers = NSMutableArray()
                 referencedObjects.forEach {
-                    let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
-                    identifiers.add(identifier)
+                    if let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
+                    {
+                        identifiers.add(identifier)
+                    }
+                    else
+                    {
+                        debugPrint("identifier is nil for", $0)
+                    }
                 }
                 objectIDs[relationshipDescription.name] = identifiers
             }
@@ -612,8 +618,14 @@ extension CoreDataAdapter {
                 // many-to-many NSOrderedSet
                 let identifiers = NSMutableArray()
                 referencedObjects.forEach {
-                    let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
-                    identifiers.add(identifier)
+                    if let identifier = self.uniqueIdentifier(for: $0 as! NSManagedObject)
+                    {
+                        identifiers.add(identifier)
+                    }
+                    else
+                    {
+                        debugPrint("identifier is nil for", $0)
+                    }
                 }
                 objectIDs[relationshipDescription.name] = identifiers
             }
