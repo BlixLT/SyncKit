@@ -279,6 +279,13 @@ import CloudKit
                             if self.isLimitExceededError(error as NSError) {
                                 self.batchSize = self.batchSize / 2
                             }
+                            else if self.isServerRecordChangedError(error as NSError) {
+                                self.handleServerRecordChangedError(serverRecordsChangedError:error as NSError) {
+                                    (error) in
+                                    self.reuploadRecordsForChildrenOf(root:root, completion:completion)
+                                }
+                                return
+                            }
                             completion(error)
                         }
 
