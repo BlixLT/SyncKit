@@ -424,7 +424,7 @@ import CloudKit
                     if !self.isExtraSharedDataShare(share: existingShare as! CKShare)
                     {
                         (existingShare as! CKShare).participants.forEach { (participant) in
-                            if participant == (existingShare as! CKShare).currentUserParticipant {
+                            if participant == (existingShare as! CKShare).currentUserParticipant && participant.acceptanceStatus == .accepted {
                                 hasAcceptedAnyAccountFromRemovedShareOwner = true
                             }
                         }
