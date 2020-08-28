@@ -190,6 +190,16 @@ extension CoreDataAdapter {
                         childrenRelationships[parentName] = [ChildRelationship]()
                     }
                     childrenRelationships[parentName]?.append(relationship)
+                    
+                    parentEntity.subentities.forEach { (subentity) in
+                        if let subentityName = subentity.name {
+                            if childrenRelationships[subentityName] == nil {
+                                childrenRelationships[subentityName] = [ChildRelationship]()
+                            }
+                            let subentityRelationship = ChildRelationship(parentEntityName: subentityName, childEntityName: childName, childParentKey: parentKey)
+                            childrenRelationships[subentityName]?.append(subentityRelationship)
+                        }
+                    }
                 }
             }
         }
