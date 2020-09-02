@@ -256,6 +256,7 @@ extension CloudKitSynchronizer {
                         self.activeZoneTokens[zoneID] = result.serverChangeToken
                         adapter?.saveChanges(in: result.downloadedRecords)
                         adapter?.deleteRecords(with: result.deletedRecordIDs)
+                        adapter?.saveToken(result.serverChangeToken)
                         if result.moreComing {
                             pendingZones.append(zoneID)
                         }

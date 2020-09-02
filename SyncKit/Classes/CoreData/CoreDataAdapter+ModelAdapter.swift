@@ -15,8 +15,6 @@ extension CoreDataAdapter: ModelAdapter {
     public func prepareToImport() {
         configureImportContext()
         privateContext.performAndWait {
-            self.deleteAllPendingRelationships()
-            self.deleteInsertedButUnmergedEntities()
             self.savePrivateContext()
         }
     }
@@ -187,6 +185,8 @@ extension CoreDataAdapter: ModelAdapter {
                     {
                         self.privateContext.perform
                         {
+                            self.deleteAllPendingRelationships()
+                            self.deleteInsertedButUnmergedEntities()
                             self.updateInsertedEntitiesAndSave()
                         }
                     }

@@ -17,6 +17,27 @@ extension CoreDataAdapter {
     func savePrivateContext() {
         debugPrint("savePrivateContext", self.recordZoneID)
         try? self.privateContext.save()
+        self.saveImportContext()
+    }
+    
+    func saveImportContext()
+    {
+        if self.targetImportContext != nil {
+            debugPrint("savePrivateContext")
+            var saveError: Error?
+            self.targetImportContext.performAndWait {
+                do {
+                    try self.targetImportContext.save()
+                } catch {
+                    saveError = error
+                    debugPrint(saveError)
+                }
+            }
+        }
+        else
+        {
+            debugPrint("savePrivateContext. no targetimportcontext")
+        }
     }
     
     func configureImportContext() {
