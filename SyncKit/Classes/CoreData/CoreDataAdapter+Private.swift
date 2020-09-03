@@ -22,12 +22,12 @@ extension CoreDataAdapter {
     
     func saveImportContext()
     {
-        if self.targetImportContext != nil {
-            debugPrint("savePrivateContext")
+        if let contextToSave = self.targetImportContext {
+            debugPrint("saveImportContext")
             var saveError: Error?
-            self.targetImportContext.performAndWait {
+            contextToSave.performAndWait {
                 do {
-                    try self.targetImportContext.save()
+                    try contextToSave.save()
                 } catch {
                     saveError = error
                     debugPrint(saveError)
@@ -36,7 +36,7 @@ extension CoreDataAdapter {
         }
         else
         {
-            debugPrint("savePrivateContext. no targetimportcontext")
+            debugPrint("saveImportContext. no context")
         }
     }
     
