@@ -164,6 +164,7 @@ extension CoreDataAdapter {
                     entity.updatedDate = NSDate()
                 }
                 
+                debugPrint("all deleted", deletedIDs.count, "deletedSharedTransactionAndSplitIDs", deletedSharedTransactionAndSplitIDs.count)
                 deletedIDs.forEach { (identifier) in
                     guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
                     entity.entityState = .deleted
@@ -171,7 +172,11 @@ extension CoreDataAdapter {
                 }
                 
                 deletedSharedTransactionAndSplitIDs.forEach { (identifier) in
-                    guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
+                    guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else {
+                        debugPrint("(Shared)Transaction or Split not found with identifier:", identifier)
+                        return
+                    }
+                    debugPrint("will save deleting", entity.identifier)
                     self.privateContext.delete(entity)
                 }
                 

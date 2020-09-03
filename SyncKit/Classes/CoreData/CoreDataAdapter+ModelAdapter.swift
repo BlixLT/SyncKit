@@ -251,6 +251,7 @@ extension CoreDataAdapter: ModelAdapter {
                 if let record = record {
                     recordIDs.append(record.recordID)
                 } else {
+                    debugPrint("1 deleting", entity.identifier)
                     self.privateContext.delete(entity)
                 }
                 if recordIDs.count >= limit {
@@ -271,6 +272,7 @@ extension CoreDataAdapter: ModelAdapter {
                     // if state is new, it is undone deletion
                     if entity.entityState != .new
                     {
+                        debugPrint("2 deleting", entity.identifier)
                         self.privateContext.delete(entity)
                     }
                 }

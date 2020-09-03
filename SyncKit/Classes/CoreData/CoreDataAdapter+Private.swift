@@ -331,6 +331,7 @@ extension CoreDataAdapter {
                 identifiersByType[entityType]?.append(originObjectID)
             }
             
+            debugPrint("4 deleting", syncedEntity.identifier)
             privateContext.delete(syncedEntity)
         }
         
