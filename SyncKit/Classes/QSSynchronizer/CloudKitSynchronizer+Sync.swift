@@ -521,6 +521,10 @@ extension CloudKitSynchronizer {
                 {
                     debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs)
                 }
+                else
+                {
+                    debugPrint(self.syncPhaseDescription(), "deleted:", deletedRecordIDs)
+                }
                     
                 adapter.didDelete(recordIDs: deletedRecordIDs ?? [])
                 

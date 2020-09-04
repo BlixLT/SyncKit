@@ -67,6 +67,8 @@ extension CoreDataAdapter {
                 }
             }
 
+            debugPrint(self.isShared(), "context deleted IDs", deletedIDs)
+            
             var insertedIdentifiersAndEntityNames = [String: String]()
 
             let inserted = targetContext.insertedObjects

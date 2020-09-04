@@ -157,11 +157,12 @@ extension CoreDataAdapter: ModelAdapter {
             }
             if notNewSyncedEntities.count != entities.count
             {
-                debugPrint("deleteReocrds. ignored new records", entities.count - notNewSyncedEntities.count)
+                debugPrint("deleteRecords. ignored new records", entities.count - notNewSyncedEntities.count)
             }
             
             if self.isShared()
             {
+                debugPrint("delete cached recordIDs from shared zone", recordIDs)
                 notNewSyncedEntities.forEach { (entity) in
                     if self.storedShare(for: entity) != nil
                     {
