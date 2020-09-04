@@ -159,6 +159,25 @@ extension CoreDataAdapter: ModelAdapter {
             {
                 debugPrint("deleteReocrds. ignored new records", entities.count - notNewSyncedEntities.count)
             }
+            
+            if self.isShared()
+            {
+                notNewSyncedEntities.forEach { (entity) in
+                    if self.storedShare(for: entity) != nil
+                    {
+                        // root object was delete, remove all child, childs of child
+                        let allChildren = self.childrenRecords(for: entity)
+                        var deletedObjectsCount = 0;
+                        allChildren.forEach { (childRecord) in
+                            if let childEntity = self.syncedEntity(withIdentifier: childRecord.recordID.recordName) {
+                                deletedObjectsCount += 1
+                                self.privateContext.delete(childEntity)
+                            }
+                        }
+                        debugPrint("delete", deletedObjectsCount, "children entities after root object deletion")
+                    }
+                }
+            }
             self.delete(syncedEntities: notNewSyncedEntities)
         }
     }
@@ -251,7 +270,6 @@ extension CoreDataAdapter: ModelAdapter {
                 if let record = record {
                     recordIDs.append(record.recordID)
                 } else {
-                    debugPrint("1 deleting", entity.identifier)
                     self.privateContext.delete(entity)
                 }
                 if recordIDs.count >= limit {
@@ -272,7 +290,6 @@ extension CoreDataAdapter: ModelAdapter {
                     // if state is new, it is undone deletion
                     if entity.entityState != .new
                     {
-                        debugPrint("2 deleting", entity.identifier)
                         self.privateContext.delete(entity)
                     }
                 }
