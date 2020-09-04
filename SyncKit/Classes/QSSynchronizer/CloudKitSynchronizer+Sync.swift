@@ -499,7 +499,9 @@ extension CloudKitSynchronizer {
             completion(nil)
             return
         }
-        
+
+        let requestedBatchSize = batchSize
+
         debugPrint(self.syncPhaseDescription(), "will create (delete) modifyRecordsOperation ", adapter.recordZoneID)
         let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
         modifyRecordsOperation.qualityOfService = .userInitiated
@@ -522,7 +524,17 @@ extension CloudKitSynchronizer {
                     
                 adapter.didDelete(recordIDs: deletedRecordIDs ?? [])
                 
-                completion(operationError)
+                if let error = operationError {
+                    // if error received, stop
+                    completion(error)
+                    return
+                }
+
+                if recordCount >= requestedBatchSize {
+                    self.uploadDeletions(adapter: adapter, completion: completion)
+                } else {
+                    completion(nil)
+                }
             }
         }
         
