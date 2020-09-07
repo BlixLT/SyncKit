@@ -12,29 +12,28 @@ import CoreData
 public class DefaultCoreDataAdapterDelegate: CoreDataAdapterDelegate {
     public static let shared = DefaultCoreDataAdapterDelegate()
     
-    public func coreDataAdapter(_ adapter: CoreDataAdapter, requestsContextSaveWithCompletion completion: (Error?) -> ()) {
+    public func coreDataAdapter(_ adapter: CoreDataAdapter, requestsContextSaveWithCompletion completion: @escaping (Error?) -> ()) {
         var saveError: Error?
-        adapter.targetContext.performAndWait {
+        adapter.targetContext.perform {
             do {
                 try adapter.targetContext.save()
             } catch {
                 saveError = error
             }
+            completion(saveError)
         }
-        completion(saveError)
     }
     
-    public func coreDataAdapter(_ adapter: CoreDataAdapter, didImportChanges importContext: NSManagedObjectContext, completion: (Error?) -> ()) {
+    public func coreDataAdapter(_ adapter: CoreDataAdapter, didImportChanges importContext: NSManagedObjectContext, completion: @escaping (Error?) -> ()) {
         var saveError: Error?
-        importContext.performAndWait {
+        importContext.perform {
             do {
                 try importContext.save()
             } catch {
                 saveError = error
             }
+            completion(saveError)
         }
-        
-        completion(saveError)
     }
     
     public init() { }
