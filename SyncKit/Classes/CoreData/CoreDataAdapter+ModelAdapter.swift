@@ -167,20 +167,41 @@ extension CoreDataAdapter: ModelAdapter {
                     if self.storedShare(for: entity) != nil
                     {
                         // root object was delete, remove all child, childs of child
-                        let allChildren = self.childrenRecords(for: entity)
-                        var deletedObjectsCount = 0;
-                        allChildren.forEach { (childRecord) in
-                            if let childEntity = self.syncedEntity(withIdentifier: childRecord.recordID.recordName) {
-                                deletedObjectsCount += 1
-                                self.privateContext.delete(childEntity)
+                        let allEntities = self.allEntities()
+                        var parentRecordNameBySyncedEntity : [QSSyncedEntity : String] = [QSSyncedEntity : String]()
+                        allEntities.forEach { (syncedEntity) in
+                            if let ckRecord = self.storedRecord(for: syncedEntity) {
+                                if ckRecord.parent?.recordID.recordName != nil
+                                {
+                                    parentRecordNameBySyncedEntity[syncedEntity] = ckRecord.parent?.recordID.recordName;
+                                }
                             }
                         }
+                        let allChildren = self.childrenEntities(for: entity.identifier ?? "", parentRecordNameBySyncedEntity: parentRecordNameBySyncedEntity)
+                        self.delete(syncedEntities: allChildren)
+                        let deletedObjectsCount = allChildren.count;
                         debugPrint("delete", deletedObjectsCount, "children entities after root object deletion")
                     }
                 }
             }
             self.delete(syncedEntities: notNewSyncedEntities)
         }
+    }
+    
+    func childrenEntities(for parentRecordName: String, parentRecordNameBySyncedEntity:[QSSyncedEntity : String] ) -> [QSSyncedEntity] {
+        var result : [QSSyncedEntity] = [QSSyncedEntity]()
+        let childEntities: [QSSyncedEntity] = parentRecordNameBySyncedEntity.compactMap {
+            if $0.value == parentRecordName
+            {
+                return $0.key;
+            }
+            return nil
+        }
+        result.append(contentsOf: childEntities)
+        childEntities.forEach { (syncedEntity) in
+            result.append(contentsOf: self.childrenEntities(for: syncedEntity.identifier ?? "", parentRecordNameBySyncedEntity: parentRecordNameBySyncedEntity))
+        }
+        return result
     }
     
     public func persistImportedChanges(completion: @escaping (Error?)->()) {
