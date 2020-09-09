@@ -170,7 +170,7 @@ extension CoreDataAdapter: ModelAdapter {
             {
                 debugPrint("delete cached recordIDs from shared zone", recordIDs)
                 notNewSyncedEntities.forEach { (entity) in
-                    if self.storedShare(for: entity) != nil
+                    if self.storedShare(for: entity) != nil || self.pendingShareRelationship(for: entity) != nil
                     {
                         // root object was delete, remove all child, childs of child
                         let allEntities = self.allEntities()
