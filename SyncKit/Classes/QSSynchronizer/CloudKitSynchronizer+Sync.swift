@@ -449,7 +449,6 @@ extension CloudKitSynchronizer {
             addMetadata(to: records)
             self.zoneIDsWithUploadedChanges.append(adapter.recordZoneID)
             let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
-            modifyRecordsOperation.qualityOfService = .userInitiated
 
             debugPrint(self.syncPhaseDescription(), "will create modifyRecordsOperation ", adapter.recordZoneID)
             modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
@@ -504,7 +503,6 @@ extension CloudKitSynchronizer {
 
         debugPrint(self.syncPhaseDescription(), "will create (delete) modifyRecordsOperation ", adapter.recordZoneID)
         let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
-        modifyRecordsOperation.qualityOfService = .userInitiated
         modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
             self.dispatchQueue.async {
                 debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer >> Deleted \(deletedRecordIDs?.count ?? 0) records of \(recordCount)")
