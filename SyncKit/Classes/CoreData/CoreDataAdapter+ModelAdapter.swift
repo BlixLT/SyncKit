@@ -35,9 +35,9 @@ extension CoreDataAdapter: ModelAdapter {
             }
             
             var queryByEntityType = [String: [String: QueryData]]()
+            var savedRecordIDs = [String]()
             for record in records {
                 var syncedEntity: QSSyncedEntity! = entitiesById[record.recordID.recordName]
-                debugPrint("Save changes in record: ", record.recordID.recordName)
                 if syncedEntity == nil {
                     if #available(iOS 10.0, *),
                         let share = record as? CKShare {
@@ -61,6 +61,10 @@ extension CoreDataAdapter: ModelAdapter {
                         debugPrint("record change tokens match. ignore", record.recordID.recordName)
                         continue
                     }
+                    else
+                    {
+                        savedRecordIDs.append(record.recordID.recordName)
+                    }
                 }
                 
                 let query = QueryData(identifier: originObjectID,
@@ -73,6 +77,8 @@ extension CoreDataAdapter: ModelAdapter {
                 }
                 queryByEntityType[entityType]?[originObjectID] = query
             }
+            
+            debugPrint("will save changes in records with IDs: ", savedRecordIDs)
             
             var tempTargetImportContext : NSManagedObjectContext? = nil
             if self.targetImportContext == nil {

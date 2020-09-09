@@ -399,7 +399,7 @@ extension CoreDataAdapter {
                 var entity: QSSyncedEntity! = pending.last
                 if (entity != nil && includedEntityIDs.contains(entity.identifier!))
                 {
-                    ddPrint("alraedy included. duplicate?")
+                    ddPrint("already included. duplicate?")
                     duplicateDetected = true
                     if let index = pending.firstIndex(of: entity) {
                         pending.remove(at: index)
@@ -414,7 +414,6 @@ extension CoreDataAdapter {
                     let record = self.recordToUpload(for: entity, context: self.targetContext, parentEntity: &parentEntity)
                     if (record != nil)
                     {
-                        debugPrint("recordToUpload: ", record!.recordID.recordName, "cateogry", record!["category"] ?? "nil", "amount:", record!["amount"] ?? "nil", "payee:", record!["payee"] ?? "nil","timestamp:",record![CoreDataAdapter.timestampKey] ?? "nil")
                         recordsArray.append(record!)
                         includedEntityIDs.insert(entity.identifier!)
                         entity = parentEntity
@@ -433,12 +432,13 @@ extension CoreDataAdapter {
                     debugPrint("records are nil for identifiers:", nilRecordsIdentifiers)
                 }
             }
+            debugPrint("recordsToUpload IDs: ", includedEntityIDs)
         }
         if (duplicateDetected)
         {
             throw CloudKitSynchronizer.SyncError.corruptedData
         }
-        debugPrint("return recordsToUpload with state:", state, "count:", recordsArray.count)
+        debugPrint("return recordsToUpload with state:", state, "count:", recordsArray.count, "ids:")
         return recordsArray
     }
     
@@ -1163,7 +1163,6 @@ extension CoreDataAdapter {
     func sortedEntities(entities: [QSSyncedEntity]) -> [QSSyncedEntity]
     {
         let entityNamesSorted = self.entityNamesSorted()
-        debugPrint("entityNamesSorted: ", entityNamesSorted)
         let sortedEntitiesMutable = NSMutableArray(array:entities)
         entityNamesSorted.forEach {
             let predicate = NSPredicate(format: "entityType = %@", $0)

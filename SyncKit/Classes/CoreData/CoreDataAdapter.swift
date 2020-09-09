@@ -156,9 +156,8 @@ extension CoreDataAdapter {
     
     private func setupPrimaryKeysLookup() {
         
-        debugPrint("setupPrimaryKeysLookup")
+        debugPrint("setupPrimaryKeysLookup", targetContext)
         targetContext.performAndWait {
-            debugPrint("setupPrimaryKeysLookup. targetContextBlock")
             guard let entities = self.targetContext.persistentStoreCoordinator?.managedObjectModel.entities else { return }
             for entityDescription in entities {
                 let entityClass: AnyClass? = NSClassFromString(entityDescription.managedObjectClassName)
@@ -169,7 +168,6 @@ extension CoreDataAdapter {
                     assert(false, "PrimaryKey protocol not implemented for class: \(String(describing: entityClass))")
                 }
             }
-            debugPrint("setupPrimaryKeysLookup. targetContextBlock. end")
         }
         debugPrint("setupPrimaryKeysLookup. end")
     }
