@@ -188,27 +188,58 @@ extension CoreDataAdapter {
                                                                        fetchLimit: 0) as? [QSSyncedEntity]
             if noPrimaryKeyTrackingEntities!.count > 0
             {
-                debugPrint("needs fix: ", noPrimaryKeyTrackingEntities!.count)
+                let totalCountToFix = noPrimaryKeyTrackingEntities!.count
+                var fixedObjects = 0
+                debugPrint("needs fix: ", totalCountToFix)
                 noPrimaryKeyTrackingEntities?.forEach({ (syncedEntity) in
                     let entityName = syncedEntity.entityType
                     let oldOriginObjectID = syncedEntity.originObjectID!
                     self.targetContext.perform {
                         if let objectID = self.targetContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation:URL(string: oldOriginObjectID)!)
                         {
-                            let managedObject = self.targetContext.object(with: objectID)
-                            let newIdentifier = self.uniqueIdentifier(for: managedObject)
-                            self.privateContext.perform {
-
-                                let syncedEntityWithNewIdentifier = self.syncedEntity(withOriginIdentifier: newIdentifier!)
-                                if syncedEntityWithNewIdentifier == nil
+                            let managedObject = try? self.targetContext.existingObject(with: objectID)
+                            if managedObject != nil
+                            {
+                                let newIdentifier = self.uniqueIdentifier(for: managedObject!)
+                                if newIdentifier == nil
                                 {
-                                    debugPrint("will fix ", oldOriginObjectID, " -> ", newIdentifier)
-                                    syncedEntity.originObjectID = newIdentifier
-                                    self.savePrivateContext()
+                                    debugPrint("no identifier for object:", managedObject, objectID);
+                                    fixedObjects = fixedObjects+1
+                                    if fixedObjects % 5000 == 0
+                                    {
+                                        debugPrint("fixed", fixedObjects, "of", totalCountToFix)
+                                    }
                                 }
                                 else
                                 {
-                                    debugPrint("cannot fix ", oldOriginObjectID, " -> ", newIdentifier, "(newIdentifier already being tracked)")
+                                    self.privateContext.perform {
+
+                                        fixedObjects = fixedObjects+1
+                                        let syncedEntityWithNewIdentifier = self.syncedEntity(withOriginIdentifier: newIdentifier!)
+                                        if syncedEntityWithNewIdentifier == nil
+                                        {
+        //                                        debugPrint("will fix ", oldOriginObjectID, " -> ", newIdentifier)
+                                            syncedEntity.originObjectID = newIdentifier
+                                            try? self.privateContext.save()
+                                        }
+                                        else
+                                        {
+                                            debugPrint("cannot fix ", oldOriginObjectID, " -> ", newIdentifier, "(newIdentifier already being tracked)")
+                                        }
+                                        if fixedObjects % 5000 == 0
+                                        {
+                                            debugPrint("fixed", fixedObjects, "of", totalCountToFix)
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                debugPrint("no existing object with id:", objectID);
+                                fixedObjects = fixedObjects+1
+                                if fixedObjects % 5000 == 0
+                                {
+                                    debugPrint("fixed", fixedObjects, "of", totalCountToFix)
                                 }
                             }
                         }
