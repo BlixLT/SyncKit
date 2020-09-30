@@ -68,7 +68,7 @@ public protocol AdapterProvider {
 
 public class CloudKitSynchronizer: NSObject {
     
-    @objc public enum SyncError: Int, Error {
+    @objc public enum SyncError: Int, LocalizedError {
         /**
          *  Received when synchronize is called while there was an ongoing synchronization.
          */
@@ -90,6 +90,8 @@ public class CloudKitSynchronizer: NSObject {
          *  Synchronization was manually cancelled.
          */
         case cancelled
+        
+        public var errorDescription: String? { return "SyncError.code: \(self.rawValue)" }
     }
     
     @objc public enum SynchronizeMode: Int {
