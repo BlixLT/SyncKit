@@ -91,7 +91,22 @@ public class CloudKitSynchronizer: NSObject {
          */
         case cancelled
         
-        public var errorDescription: String? { return "SyncError.code: \(self.rawValue)" }
+        public var errorDescription: String? { return "SyncError.type: " + self.typeString }
+        
+        var typeString: String {
+          switch self {
+          case .alreadySyncing:
+            return "alreadySyncing"
+          case .higherModelVersionFound:
+            return "higherModelVersionFound"
+          case .recordNotFound:
+            return "recordNotFound"
+          case .corruptedData:
+            return "corruptedData"
+          case .cancelled:
+            return "cancelled"
+          }
+        }
     }
     
     @objc public enum SynchronizeMode: Int {
