@@ -282,11 +282,10 @@ import CloudKit
                             else if self.isServerRecordChangedError(error as NSError) {
                                 self.handleServerRecordChangedError(serverRecordsChangedError:error as NSError) {
                                     (error) in
-                                    self.reuploadRecordsForChildrenOf(root:root, completion:completion)
+                                    uploadCompletion(error ?? operationError)
                                 }
                                 return
                             }
-                            completion(error)
                         }
 
                         uploadCompletion(operationError)
