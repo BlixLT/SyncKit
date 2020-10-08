@@ -331,13 +331,17 @@ import CloudKit
                         extraDataShares.append(existingShare as! CKShare)
                     }
                 }
-                let extraDataShare = extraDataShares.last
                 
-                if extraDataShare!.participants.count > 0
+                guard let extraDataShare = extraDataShares.last else {
+                    completion!(nil)
+                    return
+                }
+                
+                if extraDataShare.participants.count > 0
                 {
                     let participantsToRemoveFromExtraSharedData = NSMutableSet()
                     let updatedParticipants = NSMutableArray()
-                    extraDataShare!.participants.forEach { (participant) in
+                    extraDataShare.participants.forEach { (participant) in
                         if userRecordNamesThatAcceptedAnyShare.contains(participant.userIdentity.userRecordID?.recordName)
                         {
                             updatedParticipants.add(participant)
@@ -351,14 +355,14 @@ import CloudKit
                     {
                         var shouldStopSharingExtraData:Bool = false
                         participantsToRemoveFromExtraSharedData.forEach { (participant) in
-                            if participant as! CKShare.Participant == extraDataShare!.owner
+                            if participant as! CKShare.Participant == extraDataShare.owner
                             {
                                 // current user does not have any accounts shared (currently we does not stop sharing, because otherwise it will take longer for user to share account)
                                 // shouldStopSharingExtraData = true
                             }
                             else
                             {
-                                extraDataShare!.removeParticipant(participant as! CKShare.Participant)
+                                extraDataShare.removeParticipant(participant as! CKShare.Participant)
                             }
                         }
                         if shouldStopSharingExtraData
@@ -368,7 +372,7 @@ import CloudKit
                         else
                         {
                             debugPrint("should not stopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
-                            self.saveChangesForShare(extraDataShare!, completion: { (share, saveChangesError) in
+                            self.saveChangesForShare(extraDataShare, completion: { (share, saveChangesError) in
                                 
                                 self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
                                     if hasShareLocally
