@@ -537,7 +537,7 @@ extension CoreDataAdapter: ModelAdapter {
         var records: [CKRecord]!
         privateContext.performAndWait {
             if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
-                records = self.childrenRecords(for: entity)
+                records = self.childrenRecordsWithWrongParent(for: entity)
             }
         }
         return records ?? []
@@ -552,7 +552,7 @@ extension CoreDataAdapter: ModelAdapter {
         var records: [CKRecord]!
         privateContext.perform {
             if let entity = self.syncedEntity(withOriginIdentifier: objectIdentifier) {
-                records = self.childrenRecords(for: entity)
+                records = self.childrenRecordsWithWrongParent(for: entity)
             }
             completion(records ?? [])
         }

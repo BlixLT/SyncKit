@@ -255,6 +255,8 @@ import CloudKit
         
         modelAdapter.recordsToUpdateParentRelationshipsForRoot(root, completion: { (records) in
 
+            debugPrint("recordsToUpdateParentRelationshipsForRoot:", records.count)
+
             guard records.count > 0 else {
                 completion(nil)
                     return

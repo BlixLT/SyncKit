@@ -798,6 +798,77 @@ extension CoreDataAdapter {
         })
     }
     
+    func childrenRecordsWithWrongParent(for entity: QSSyncedEntity) -> [CKRecord] {
+        // return only records, that actually have wrong parent
+        var childrenRecordsWithWrongParent = [CKRecord]()
+        var storedRecord: CKRecord? = self.storedRecord(for: entity)
+        if (storedRecord != nil)
+        {
+            targetContext.performAndWait {
+                // check if storedRecord has correct parent
+                let entityType = entity.entityType
+                if (entityType != nil)
+                {
+                    let entityDescription = NSEntityDescription.entity(forEntityName: entityType!, in: targetContext)
+                    if (entityDescription != nil)
+                    {
+                        let entityClass: AnyClass? = NSClassFromString(entityDescription!.managedObjectClassName)
+                        var parentKey: String?
+                        if let parentKeyClass = entityClass as? ParentKey.Type {
+                            parentKey = parentKeyClass.parentKey()
+                            if let parentKey = parentKey,
+                                let reference = storedRecord![parentKey] as? CKRecord.Reference,
+                                (entity.entityState == .new || storedRecord!.parent?.recordID != reference.recordID)
+                                 {
+                                    // wrong parent recordID, we need to upload it
+                                    storedRecord = nil
+                            }
+                            else
+                            {
+                                // storedRecord has correct parent
+                                if (entity.entityState == .new)
+                                {
+                                    // probably shouldnt come here - if state is new, then there should be no storedRecord
+                                    storedRecord = nil
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (storedRecord == nil)
+        {
+            var parent: QSSyncedEntity?
+            let recordToUpload = self.recordToUpload(for: entity, context: targetContext, parentEntity: &parent)
+            if (recordToUpload != nil)
+            {
+                childrenRecordsWithWrongParent.append(recordToUpload!)
+            }
+        }
+        let relationships = childrenRelationships[entity.entityType!] ?? []
+        for relationship in relationships {
+            // get child objects using parentkey
+            let objectID = entity.originObjectID!
+            let entityType = entity.entityType!
+            var originalObject: NSManagedObject!
+            var childrenIdentifiers = [String]()
+            targetContext.performAndWait {
+                originalObject = self.managedObject(entityName: entityType, identifier: objectID, context: self.targetContext)
+                let childrenObjects = self.children(of: originalObject, relationship: relationship)
+                childrenIdentifiers.append(contentsOf: childrenObjects.compactMap { self.uniqueIdentifier(for: $0) })
+            }
+            // get their syncedEntities
+            for identifier in childrenIdentifiers {
+                if let childEntity = self.syncedEntity(withOriginIdentifier: identifier) {
+                    // add and also add their children
+                    childrenRecordsWithWrongParent.append(contentsOf: self.childrenRecordsWithWrongParent(for: childEntity))
+                }
+            }
+        }
+        return childrenRecordsWithWrongParent
+    }
+    
     func childrenRecords(for entity: QSSyncedEntity) -> [CKRecord] {
         // Add record for this entity
         var childrenRecords = [CKRecord]()
