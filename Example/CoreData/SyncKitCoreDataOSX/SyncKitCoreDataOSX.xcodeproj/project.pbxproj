@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -44,8 +44,9 @@
 		649236F922C7C1460074A142 /* QSSyncedEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40522C006D000EAC16C /* QSSyncedEntity+CoreDataClass.swift */; };
 		649236FA22C7C1460074A142 /* QSSyncedEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40C22C006D000EAC16C /* QSSyncedEntity+CoreDataProperties.swift */; };
 		649236FB22C7C14D0074A142 /* QSCloudKitSyncModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */; };
-		91ED32FC243A9F26002E68A5 /* CocoaLumberjackSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */; };
-		91ED3301243AA351002E68A5 /* CocoaLumberjackSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		91EF2FF2256BC6E100C96565 /* CocoaLumberjackSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF1256BC6E100C96565 /* CocoaLumberjackSwift */; };
+		91EF2FF4256BC6E100C96565 /* CocoaLumberjack in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF3256BC6E100C96565 /* CocoaLumberjack */; };
+		91EF2FF6256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF5256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -55,7 +56,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				91ED3301243AA351002E68A5 /* CocoaLumberjackSwift.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -104,8 +104,6 @@
 		648D93F322CBEF5600C01529 /* CloudKitSynchronizer+Sync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "CloudKitSynchronizer+Sync.swift"; path = "../../../../../SyncKit/Classes/QSSynchronizer/CloudKitSynchronizer+Sync.swift"; sourceTree = "<group>"; };
 		648D93F422CBEF5600C01529 /* ModelAdapter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ModelAdapter.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/ModelAdapter.swift; sourceTree = "<group>"; };
 		649236DF22C7C1230074A142 /* SyncKitCoreDataOSX.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncKitCoreDataOSX.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjackSwift.framework; path = ../../../../CocoaLumberjack/macOS/CocoaLumberjackSwift.framework; sourceTree = "<group>"; };
-		91ED32FB243A9F26002E68A5 /* CocoaLumberjack.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CocoaLumberjack.framework; path = ../../../../CocoaLumberjack/macOS/CocoaLumberjack.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,7 +111,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91ED32FC243A9F26002E68A5 /* CocoaLumberjackSwift.framework in Frameworks */,
+				91EF2FF4256BC6E100C96565 /* CocoaLumberjack in Frameworks */,
+				91EF2FF6256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend in Frameworks */,
+				91EF2FF2256BC6E100C96565 /* CocoaLumberjackSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -202,8 +202,6 @@
 		91E25B892436349000B08A53 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				91ED32FA243A9F26002E68A5 /* CocoaLumberjackSwift.framework */,
-				91ED32FB243A9F26002E68A5 /* CocoaLumberjack.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -236,6 +234,11 @@
 			dependencies = (
 			);
 			name = SyncKitCoreDataOSX;
+			packageProductDependencies = (
+				91EF2FF1256BC6E100C96565 /* CocoaLumberjackSwift */,
+				91EF2FF3256BC6E100C96565 /* CocoaLumberjack */,
+				91EF2FF5256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend */,
+			);
 			productName = SyncKitCoreDataOSX;
 			productReference = 649236DF22C7C1230074A142 /* SyncKitCoreDataOSX.framework */;
 			productType = "com.apple.product-type.framework";
@@ -262,6 +265,9 @@
 				en,
 			);
 			mainGroup = 6433B37222C001D200EAC16C;
+			packageReferences = (
+				91EF2FF0256BC6E100C96565 /* XCRemoteSwiftPackageReference "CocoaLumberjack" */,
+			);
 			productRefGroup = 6433B37D22C001D200EAC16C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -737,6 +743,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		91EF2FF0256BC6E100C96565 /* XCRemoteSwiftPackageReference "CocoaLumberjack" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/CocoaLumberjack/CocoaLumberjack.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		91EF2FF1256BC6E100C96565 /* CocoaLumberjackSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 91EF2FF0256BC6E100C96565 /* XCRemoteSwiftPackageReference "CocoaLumberjack" */;
+			productName = CocoaLumberjackSwift;
+		};
+		91EF2FF3256BC6E100C96565 /* CocoaLumberjack */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 91EF2FF0256BC6E100C96565 /* XCRemoteSwiftPackageReference "CocoaLumberjack" */;
+			productName = CocoaLumberjack;
+		};
+		91EF2FF5256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 91EF2FF0256BC6E100C96565 /* XCRemoteSwiftPackageReference "CocoaLumberjack" */;
+			productName = CocoaLumberjackSwiftLogBackend;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */ = {
