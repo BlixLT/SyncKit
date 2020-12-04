@@ -356,7 +356,9 @@ extension CoreDataAdapter: ModelAdapter {
     public func didFinishImport(with error: Error?, clearTempFiles : Bool)
     {
         guard privateContext != nil else { return }
-        
+        guard privateContext.persistentStoreCoordinator != nil else { return }
+        guard privateContext.persistentStoreCoordinator!.persistentStores.count > 0 else { return }
+
         debugPrint("didFinishImportWithError: ", error ?? "nil")
         privateContext.performAndWait {
             self.savePrivateContext()
