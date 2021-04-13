@@ -28,6 +28,12 @@ public func debugPrint(_ items: Any..., separator: String = " ", terminator: Str
     ddPrint(string);
 }
 
+@objc public class MNCSyncKitLogHelper: NSObject {
+    @objc static public func addLogger(logger:DDLogger) {
+        DDLog.add(logger)
+    }
+}
+
 // For Obj-C
 @objc public extension NSNotification {
     static let CloudKitSynchronizerWillSynchronizeNotification: NSString = "QSCloudKitSynchronizerWillSynchronizeNotification"
