@@ -143,9 +143,9 @@ extension CoreDataAdapter {
                 
                 self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
                 
-                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld insertions", insertedIdentifiersAndEntityNames.count)
-                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld updates", updatedCount)
-                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking %ld deletions", deletedIDs.count)
+                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", insertedIdentifiersAndEntityNames.count, "insertions")
+                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", updatedCount, "updates")
+                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", deletedIDs.count, "deletions")
                 
                 self.savePrivateContext()
             }
@@ -219,7 +219,7 @@ extension CoreDataAdapter {
 
                 self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
                         
-                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Did Save >> Tracking %ld insertions", inserted?.count ?? 0)
+                debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Did Save >> Tracking", inserted?.count ?? 0, "insertions")
 
                 self.savePrivateContext()
                 

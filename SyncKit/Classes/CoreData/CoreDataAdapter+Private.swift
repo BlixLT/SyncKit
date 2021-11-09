@@ -1251,7 +1251,7 @@ extension CoreDataAdapter {
                 }
                 else
                 {
-                    debugPrint("no record for syncedEntity: %@", $0)
+                    debugPrint("no record for syncedEntity:", $0)
                 }
             }
         }
