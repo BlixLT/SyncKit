@@ -471,7 +471,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
 					"$(PROJECT_DIR)",
-					../../../../CocoaLumberjack/macOS/,
 				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
@@ -504,7 +503,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
 					"$(PROJECT_DIR)",
-					../../../../CocoaLumberjack/macOS/,
 				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
@@ -601,7 +599,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
 					"$(PROJECT_DIR)",
-					../../../../CocoaLumberjack/macOS/,
 				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
@@ -698,7 +695,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/SyncKitCoreDataOSX/CoreData",
 					"$(PROJECT_DIR)",
-					../../../../CocoaLumberjack/macOS/,
 				);
 				FRAMEWORK_VERSION = A;
 				INFOPLIST_FILE = SyncKitCoreDataOSX/Info.plist;
