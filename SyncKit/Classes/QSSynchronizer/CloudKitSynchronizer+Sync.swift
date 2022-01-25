@@ -81,7 +81,7 @@ extension CloudKitSynchronizer {
         debugPrint("loadTokensFor: ", zoneIDs)
         for zoneID in zoneIDs {
             var modelAdapter = modelAdapterDictionary[zoneID]
-            debugPrint("modelAdapter.loadTokens: ", modelAdapter, loadAdapters)
+            debugPrint("modelAdapter.loadTokens: ", modelAdapter ?? "n/a modelAdapter", loadAdapters)
             if modelAdapter == nil && loadAdapters {
                 debugPrint("modelAdapterForRecordZoneID: ", zoneID)
                 if let newModelAdapter = adapterProvider.cloudKitSynchronizer(self, modelAdapterForRecordZoneID: zoneID) {
@@ -517,11 +517,11 @@ extension CloudKitSynchronizer {
                 
                 if let error = operationError, (error as NSError).domain == CKErrorDomain
                 {
-                    debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs)
+                    debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs")
                 }
                 else
                 {
-                    debugPrint(self.syncPhaseDescription(), "deleted:", deletedRecordIDs)
+                    debugPrint(self.syncPhaseDescription(), "deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs")
                 }
                     
                 adapter.didDelete(recordIDs: deletedRecordIDs ?? [])

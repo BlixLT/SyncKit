@@ -10,7 +10,7 @@ import Foundation
 import CloudKit
 import CoreData
 
-@objc public protocol DefaultCoreDataStackProviderDelegate: class {
+@objc public protocol DefaultCoreDataStackProviderDelegate: AnyObject {
     func provider(_ provider: DefaultCoreDataStackProvider, didAddAdapter adapter: CoreDataAdapter, forZoneID zoneID: CKRecordZone.ID)
     func provider(_ provider: DefaultCoreDataStackProvider, didRemoveAdapterForZoneID zoneID: CKRecordZone.ID)
 }

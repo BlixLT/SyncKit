@@ -30,7 +30,7 @@ extension CoreDataAdapter {
                     try contextToSave.save()
                 } catch {
                     saveError = error
-                    debugPrint(saveError)
+                    debugPrint(saveError ?? "n/a saveError")
                 }
             }
         }
@@ -203,7 +203,7 @@ extension CoreDataAdapter {
                                 let newIdentifier = self.uniqueIdentifier(for: managedObject!)
                                 if newIdentifier == nil
                                 {
-                                    debugPrint("no identifier for object:", managedObject, objectID);
+                                    debugPrint("no identifier for object:", managedObject ?? "n/a managedObject", objectID);
                                     fixedObjects = fixedObjects+1
                                     if fixedObjects % 5000 == 0
                                     {
@@ -224,7 +224,7 @@ extension CoreDataAdapter {
                                         }
                                         else
                                         {
-                                            debugPrint("cannot fix ", oldOriginObjectID, " -> ", newIdentifier, "(newIdentifier already being tracked)")
+                                            debugPrint("cannot fix ", oldOriginObjectID, " -> ", newIdentifier ?? "n/a newIdentifier", "(newIdentifier already being tracked)")
                                         }
                                         if fixedObjects % 5000 == 0
                                         {
@@ -245,7 +245,7 @@ extension CoreDataAdapter {
                         }
                         else
                         {
-                            debugPrint("cannot find object with id: ", syncedEntity.originObjectID)
+                            debugPrint("cannot find object with id: ", syncedEntity.originObjectID ?? "n/a originObjectID")
                         }
                     }
                     
@@ -570,7 +570,7 @@ extension CoreDataAdapter {
                     let recordID = CKRecord.ID(recordName: entity.identifier!, zoneID: self.recordZoneID)
                     // if we set the parent we must make the action .deleteSelf, otherwise we get errors if we ever try to delete the parent record
                     // with deleteSelf sharable children count is 750, with .none - much bigger (?). We just need to handle correct deletions upload order to avoid reference violation errors.
-                    let action: CKRecord.Reference.Action = parentKey == relationshipName ? .none : .none
+                    let action: CKRecord.ReferenceAction = parentKey == relationshipName ? .none : .none
                     let recordReference = CKRecord.Reference(recordID: recordID, action: action)
                     record[relationshipName] = recordReference
                 }
@@ -583,7 +583,7 @@ extension CoreDataAdapter {
              {
             // For the parent reference we have to use action .none though, even if we must use .deleteSelf for the attribute (see ^)
             debugPrint("update parent for: ", record.recordID, "entityState: ", entityState, "changedKeys: ", changedKeys)
-            record.parent = CKRecord.Reference(recordID: reference.recordID, action: CKRecord.Reference.Action.none)
+            record.parent = CKRecord.Reference(recordID: reference.recordID, action: CKRecord.ReferenceAction.none)
             parentEntity = referencedEntities[parentKey] as? QSSyncedEntity
         }
         else if self.shouldShareEntity(entity: entity)
@@ -592,7 +592,7 @@ extension CoreDataAdapter {
             if extraDataParentRecordID != nil
             {
                 // For the parent reference we have to use action .none though, even if we must use .deleteSelf for the attribute (see ^)
-                record.parent = CKRecord.Reference(recordID: extraDataParentRecordID!, action: CKRecord.Reference.Action.none)
+                record.parent = CKRecord.Reference(recordID: extraDataParentRecordID!, action: CKRecord.ReferenceAction.none)
             }
         }
         else if (entity.entityType == self.extraDataEntityName())
@@ -1147,8 +1147,8 @@ extension CoreDataAdapter {
                         targetObjectInfos.forEach {
                             let originObjectID = ($0 as! RelationshipTarget).originObjectID
                             let entityType = ($0 as! RelationshipTarget).entityType
-                            let targetManagedObject = self.managedObject(entityName: entityType as! String,
-                                                                         identifier: originObjectID as! String,
+                            let targetManagedObject = self.managedObject(entityName: entityType!,
+                                                                         identifier: originObjectID!,
                                                                          context: context)
                             if targetManagedObject != nil
                             {
@@ -1156,7 +1156,7 @@ extension CoreDataAdapter {
                             }
                             else
                             {
-                                debugPrint("relationship object not found for key: ", relationshipName, "with identifier: ", originObjectID , "for managedObject entityName : ", managedObject.entity.name ?? "n/a")
+                                debugPrint("relationship object not found for key: ", relationshipName, "with identifier: ", originObjectID ?? "n/a originObjectID" , "for managedObject entityName : ", managedObject.entity.name ?? "n/a")
                             }
                         }
                         if (isOrdered)

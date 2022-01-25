@@ -275,7 +275,7 @@ extension CoreDataAdapter: ModelAdapter {
                     }
                     else
                     {
-                        debugPrint("timestamps not equal (or deleted)", record.recordID.recordName, record[CoreDataAdapter.timestampKey], entity.updatedDate, entity.entityState)
+                        debugPrint("timestamps not equal (or deleted)", record.recordID.recordName, record[CoreDataAdapter.timestampKey] ?? "n/a timestamp", entity.updatedDate ?? "n/a updateDate", entity.entityState)
                     }
                     self.save(record: record, for: entity)
                 }

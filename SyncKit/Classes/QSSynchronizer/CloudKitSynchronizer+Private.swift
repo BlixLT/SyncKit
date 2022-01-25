@@ -95,7 +95,7 @@ extension CloudKitSynchronizer {
             if self.compatibilityVersion > 0 {
                 $0[CloudKitSynchronizer.modelCompatibilityVersionKey] = self.compatibilityVersion
             }
-            debugPrint("record:", $0.recordID.recordName, "device:", $0[CloudKitSynchronizer.deviceUUIDKey])
+            debugPrint("record:", $0.recordID.recordName, "device:", $0[CloudKitSynchronizer.deviceUUIDKey] ?? "n/a")
         }
     }
     

@@ -32,7 +32,7 @@ public extension Notification.Name {
 /**
  *  An object conforming to `QSModelAdapter` will track the local model, provide changes to upload to CloudKit and import downloaded changes.
  */
-@objc public protocol ModelAdapter: class {
+@objc public protocol ModelAdapter: AnyObject {
     
     /**
      *  @return Whether the model has any changes

@@ -97,7 +97,7 @@ import CloudKit
      - completion: Closure that gets called with an optional error when the operation is completed.
      
      */
-    @objc func share(object: AnyObject, publicPermission: CKShare.Participant.Permission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
+    @objc func share(object: AnyObject, publicPermission: CKShare.ParticipantPermission, extraShareAttributes: Dictionary<String, String>, participants: [CKShare.Participant], completion: ((CKShare?, Error?) -> ())?) {
         
         debugPrint("shareObject.start")
         
@@ -142,9 +142,9 @@ import CloudKit
                         
                         let uploadedShare = savedRecords?.first { $0 is CKShare} as? CKShare
                         
-                        if let savedRecords = savedRecords,
+                        if savedRecords != nil,
                             operationError == nil,
-                            let share = uploadedShare {
+                           uploadedShare != nil {
                             
                             DispatchQueue.main.async {
                                 completion?(uploadedShare, operationError)
@@ -324,7 +324,10 @@ import CloudKit
                     {
                         (existingShare as! CKShare).participants.forEach { (participant) in
                             if participant.acceptanceStatus == .accepted {
-                                userRecordNamesThatAcceptedAnyShare.add(participant.userIdentity.userRecordID?.recordName)
+                                if let userRecordName = participant.userIdentity.userRecordID?.recordName
+                                {
+                                    userRecordNamesThatAcceptedAnyShare.add(userRecordName)
+                                }
                             }
                         }
                     }
@@ -344,7 +347,7 @@ import CloudKit
                     let participantsToRemoveFromExtraSharedData = NSMutableSet()
                     let updatedParticipants = NSMutableArray()
                     extraDataShare.participants.forEach { (participant) in
-                        if userRecordNamesThatAcceptedAnyShare.contains(participant.userIdentity.userRecordID?.recordName)
+                        if let userRecordName = participant.userIdentity.userRecordID?.recordName,  userRecordNamesThatAcceptedAnyShare.contains(userRecordName)
                         {
                             updatedParticipants.add(participant)
                         }
@@ -355,7 +358,7 @@ import CloudKit
                     }
                     if participantsToRemoveFromExtraSharedData.count > 0
                     {
-                        var shouldStopSharingExtraData:Bool = false
+//                        let shouldStopSharingExtraData:Bool = false
                         participantsToRemoveFromExtraSharedData.forEach { (participant) in
                             if participant as! CKShare.Participant == extraDataShare.owner
                             {
@@ -367,12 +370,12 @@ import CloudKit
                                 extraDataShare.removeParticipant(participant as! CKShare.Participant)
                             }
                         }
-                        if shouldStopSharingExtraData
-                        {
-                            debugPrint("shouldStopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
-                        }
-                        else
-                        {
+//                        if shouldStopSharingExtraData
+//                        {
+//                            debugPrint("shouldStopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
+//                        }
+//                        else
+//                        {
                             debugPrint("should not stopSharingExtraData")  //(currently we does not stop sharing, because otherwise it will take longer for user to share account)
                             self.saveChangesForShare(extraDataShare, completion: { (share, saveChangesError) in
                                 
@@ -390,7 +393,7 @@ import CloudKit
                                 })
                             })
                             return
-                        }
+//                        }
                     }
                     
                     self.hasRecordID(deletedShare.recordID, adapters:self.modelAdapters, completion: { (hasShareLocally) in
