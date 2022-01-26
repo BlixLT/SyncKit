@@ -192,7 +192,6 @@ extension CoreDataAdapter {
                 var fixedObjects = 0
                 debugPrint("needs fix: ", totalCountToFix)
                 noPrimaryKeyTrackingEntities?.forEach({ (syncedEntity) in
-                    let entityName = syncedEntity.entityType
                     let oldOriginObjectID = syncedEntity.originObjectID!
                     self.targetContext.perform {
                         if let objectID = self.targetContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation:URL(string: oldOriginObjectID)!)
