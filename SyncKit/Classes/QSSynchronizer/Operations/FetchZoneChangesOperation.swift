@@ -62,6 +62,18 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
     func performFetchOperation(with zones: [CKRecordZone.ID]) {
         
         var higherModelVersionFound = false
+#if os (iOS) || os(watchOS)
+        var zoneConfigurations = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]()
+        
+        for zoneID in zones {
+            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+            configuration.previousServerChangeToken = zoneChangeTokens[zoneID]
+            configuration.desiredKeys = desiredKeys
+            zoneConfigurations[zoneID] = configuration
+        }
+        
+        let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: zones, configurationsByRecordZoneID: zoneConfigurations)
+#else
         var zoneOptions = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneOptions]()
         
         for zoneID in zones {
@@ -72,6 +84,7 @@ public class FetchZoneChangesOperation: CloudKitSynchronizerOperation {
         }
         
         let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: zones, optionsByRecordZoneID: zoneOptions)
+#endif
         operation.fetchAllChanges = false
         
         operation.recordChangedBlock = { record in
