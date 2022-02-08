@@ -13,11 +13,15 @@ class QSCoder {
     static let shared = QSCoder()
     
     func data(from object: Any, secure: Bool = false) -> Data? {
-        return NSKeyedArchiver.archivedData(withRootObject: object)
+        if #available(macOSApplicationExtension 10.13, *) {
+            return try? NSKeyedArchiver.archivedData(withRootObject: object, requiringSecureCoding: false)
+        } else {
+            return NSKeyedArchiver.archivedData(withRootObject: object)
+        }
     }
     
     func object(from data: Data) -> Any? {
-        return NSKeyedUnarchiver.unarchiveObject(with: data)
+        return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(_:data)
     }
     
     func encode<T: CKRecord>(_ record: T, onlySystemFields: Bool = false) -> Data {
