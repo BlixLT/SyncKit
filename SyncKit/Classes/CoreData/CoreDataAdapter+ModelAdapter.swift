@@ -190,6 +190,11 @@ extension CoreDataAdapter: ModelAdapter {
                     }
                 }
             }
+            else
+            {
+                let recordNames = recordIDs.compactMap { $0.recordName }
+                debugPrint("delete recordIDs from private zone", recordNames)
+            }
             self.delete(syncedEntities: notNewSyncedEntities)
         }
     }
@@ -557,6 +562,62 @@ extension CoreDataAdapter: ModelAdapter {
                 records = self.childrenRecordsWithWrongParent(for: entity)
             }
             completion(records ?? [])
+        }
+    }
+    
+    // temp for debuging
+    public func debugDeleteRecordViolationForParentRecordName(_ parentRecordName: String, childRecordName: String, completion: @escaping ()->()) -> () {
+
+        guard privateContext != nil else { return }
+
+        privateContext.perform {
+            let parentSyncedEntity = self.syncedEntity(withIdentifier: parentRecordName)
+            debugPrint("SyncKit", parentRecordName, parentSyncedEntity?.entityState ?? "n/a",
+                parentSyncedEntity?.updatedDate ?? "n/a",
+                parentSyncedEntity?.changedKeys ?? "n/a")
+
+            let childSyncedEntity = self.syncedEntity(withIdentifier: childRecordName)
+            debugPrint("SyncKit", childRecordName, childSyncedEntity?.entityState ?? "n/a", childSyncedEntity?.updatedDate ?? "n/a", childSyncedEntity?.changedKeys ?? "n/a")
+
+            var tempTargetImportContext : NSManagedObjectContext? = nil
+            if self.targetImportContext == nil {
+                self.configureImportContext()
+                tempTargetImportContext = self.targetImportContext
+            }
+            self.targetImportContext.performAndWait {
+                if (parentSyncedEntity != nil)
+                {
+                    let parentInApp = self.managedObject(entityName: parentSyncedEntity!.entityType!, identifier: parentSyncedEntity!.originObjectID!, context: self.targetImportContext)
+                    if parentInApp != nil
+                    {
+                        debugPrint("local parent", parentInApp!, parentInApp!.isDeleted ? "is deleted" : "is not deleted")
+                    }
+                }
+                if (childSyncedEntity != nil)
+                {
+                    let childInApp = self.managedObject(entityName: childSyncedEntity!.entityType!, identifier: childSyncedEntity!.originObjectID!, context: self.targetImportContext)
+                    if childInApp != nil
+                    {
+                        debugPrint("local child", childInApp!, childInApp!.isDeleted ? "is deleted" : "is not deleted")
+                    }
+                    let entityType = childSyncedEntity!.entityType
+                    if (entityType != nil)
+                    {
+                        let entityDescription = NSEntityDescription.entity(forEntityName: entityType!, in: self.targetImportContext)
+                        if (entityDescription != nil)
+                        {
+                            let entityClass: AnyClass? = NSClassFromString(entityDescription!.managedObjectClassName)
+                            if let parentKeyClass = entityClass as? ParentKey.Type {
+                                let parentKey = parentKeyClass.parentKey()
+                                debugPrint("child's parent", childInApp?.value(forKey: parentKey) as Any)
+                            }
+                        }
+                    }
+                }
+                
+                tempTargetImportContext = nil
+                completion()
+            }
         }
     }
 }

@@ -120,6 +120,20 @@ extension CloudKitSynchronizer {
         return error.code == CKError.serverRecordChanged.rawValue
     }
     
+    func isReferenceViolationError(_ error: NSError) -> Bool {
+        
+        if error.code == CKError.partialFailure.rawValue,
+            let errorsByItemID = error.userInfo[CKPartialErrorsByItemIDKey] as? [CKRecord.ID: NSError],
+            errorsByItemID.values.contains(where: { (error) -> Bool in
+                return error.code == CKError.referenceViolation.rawValue
+            }) {
+            
+            return true
+        }
+        
+        return error.code == CKError.referenceViolation.rawValue
+    }
+
     func isZoneNotFoundOrDeletedError(_ error: Error?) -> Bool {
         if let error = error {
             let nserror = error as NSError
@@ -390,6 +404,105 @@ extension CloudKitSynchronizer {
         }
     }
     
+    func handleReferenceViolationError(referrenceViolationError:NSError, adapter:ModelAdapter, completion: @escaping (Error?)->()) {
+        
+        let errorsByItemID = referrenceViolationError.userInfo[CKPartialErrorsByItemIDKey] as? [CKRecord.ID: NSError]
+        var referrenceViolationRecordNames : [String] = [String] ()
+        var referrenceViolationParentRecordNames : [String] = [String] ()
+        errorsByItemID!.forEach { (ckrecordid, error) in
+            if error.code == CKError.referenceViolation.rawValue {
+                if let description = error.userInfo["ServerErrorDescription"] as? String, let referenceViolationRecordName = self.referrenceViolationRecordNameFrom(description: description)
+                {
+                    referrenceViolationParentRecordNames.append(ckrecordid.recordName)
+                    referrenceViolationRecordNames.append(referenceViolationRecordName)
+                }
+            }
+        }
+        
+        if referrenceViolationRecordNames.count > 0 {
+            
+            adapter.debugDeleteRecordViolationForParentRecordName(referrenceViolationParentRecordNames.first ?? "", childRecordName: referrenceViolationRecordNames.first!) {
+                
+                // delete child that violates deletion
+               var recordIDsToDelete = [CKRecord.ID]()
+               referrenceViolationRecordNames.forEach { recordName in
+                   let recordID = CKRecord.ID(recordName: recordName, zoneID: adapter.recordZoneID)
+                   recordIDsToDelete.append(recordID)
+               }
+
+               let modifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsToDelete)
+               
+               modifyRecordsOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, operationError in
+                   self.dispatchQueue.async {
+                       debugPrint(self.syncPhaseDescription(), "QSCloudKitSynchronizer (referrence violation fix) >> Deleted \(deletedRecordIDs?.count ?? 0) records of \(recordIDsToDelete.count)")
+                       
+                       if let error = operationError,
+                           self.isLimitExceededError(error as NSError) {
+                               
+                           self.batchSize = self.batchSize / 2
+                       } else if self.batchSize < CloudKitSynchronizer.defaultBatchSize {
+                           self.batchSize = self.batchSize + 5
+                       }
+                       
+                       if let error = operationError, (error as NSError).domain == CKErrorDomain
+                       {
+                           debugPrint(self.syncPhaseDescription(), "(referrence violation fix) tried to delete:", recordIDsToDelete, "deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs", "error:", error)
+                           if self.isReferenceViolationError(error as NSError)
+                           {
+                               self.handleReferenceViolationError(referrenceViolationError: error as NSError, adapter:adapter) { handleViolationError in
+                                   if let anError = handleViolationError {
+                                       // if error received, stop
+                                       completion(anError)
+                                       return
+                                   }
+                                   self.uploadDeletions(adapter: adapter, completion: completion)
+                               }
+                               return;
+                           }
+                       }
+                       else
+                       {
+                           debugPrint(self.syncPhaseDescription(), "(referrence violation fix) deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs")
+                       }
+                       
+                       completion(operationError)
+                   }
+               }
+               
+                self.database.add(modifyRecordsOperation)
+            }
+        }
+        else
+        {
+            completion(nil)
+        }
+    }
+    
+    func referrenceViolationRecordNameFrom(description:String) -> String?
+    {
+//        "Record delete would violate validating reference ([TransactionSplit.E684AA86-9DC4-4EBB-8B78-1AF67DA53C6C, ...]), rejecting update"
+        let pattern = #"\(\[(\w*)\.([A-Z0-9\-]*).*\]\)"#
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: [])
+        
+            let results = regex.matches(in: description,
+                                        range: NSRange(description.startIndex..., in: description))
+            return results.map {
+                let nsrange = $0.range
+                let untrimmedString = String(description[Range(nsrange, in: description)!])
+                var trimCharSet = CharacterSet()
+                trimCharSet.insert(charactersIn: ", ...[()]")
+                let trimmedString = untrimmedString.trimmingCharacters(in: trimCharSet)
+                debugPrint("parsed", trimmedString, "from", description)
+                return trimmedString
+            }.first
+
+        } catch let error {
+            debugPrint("invalid regex: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
     func uploadChanges(completion: @escaping (Error?)->()) {
         sequential(objects: modelAdapters, closure: setupZoneAndUploadRecords) { (error) in
             guard error == nil else { completion(error); return }
@@ -518,6 +631,18 @@ extension CloudKitSynchronizer {
                 if let error = operationError, (error as NSError).domain == CKErrorDomain
                 {
                     debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs")
+                    if self.isReferenceViolationError(error as NSError)
+                    {
+                        self.handleReferenceViolationError(referrenceViolationError: error as NSError, adapter:adapter) { handleViolationError in
+                            if let anError = handleViolationError {
+                                // if error received, stop
+                                completion(anError)
+                                return
+                            }
+                            self.uploadDeletions(adapter: adapter, completion: completion)
+                        }
+                        return;
+                    }
                 }
                 else
                 {
