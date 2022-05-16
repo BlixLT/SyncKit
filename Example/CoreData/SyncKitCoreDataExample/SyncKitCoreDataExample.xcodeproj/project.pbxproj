@@ -86,6 +86,7 @@
 		64CFAF2F22CD26E4009CF1F1 /* QSEmployee+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64CFAF2522CD26C7009CF1F1 /* QSEmployee+CoreDataProperties.swift */; };
 		64EB18BD26AEB73500F0BB5C /* Identifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EB18BC26AEB73500F0BB5C /* Identifier.swift */; };
 		64FB131F22AD9CBC000928D2 /* FetchZoneChangesOperationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FB131E22AD9CBC000928D2 /* FetchZoneChangesOperationTests.swift */; };
+		CA0A358E28325BFD008D1C5B /* QSNamesSecureUnarchiverTransformer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0A358D28325BFD008D1C5B /* QSNamesSecureUnarchiverTransformer.swift */; };
 		DA25F3B0F5155A1605F5149C /* Pods_SyncKitCoreDataExampleTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CA7C10D0C507CB8A1AED2CA4 /* Pods_SyncKitCoreDataExampleTests.framework */; };
 /* End PBXBuildFile section */
 
@@ -182,6 +183,7 @@
 		64FB131E22AD9CBC000928D2 /* FetchZoneChangesOperationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchZoneChangesOperationTests.swift; sourceTree = "<group>"; };
 		9138DEA549B0FDC946BD0398 /* Pods-SyncKitCoreDataExampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyncKitCoreDataExampleTests.release.xcconfig"; path = "../Pods/Target Support Files/Pods-SyncKitCoreDataExampleTests/Pods-SyncKitCoreDataExampleTests.release.xcconfig"; sourceTree = "<group>"; };
 		AAC656A12D4EC5BC36DCA7B8 /* Pods-SyncKitCoreDataExampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyncKitCoreDataExampleTests.debug.xcconfig"; path = "../Pods/Target Support Files/Pods-SyncKitCoreDataExampleTests/Pods-SyncKitCoreDataExampleTests.debug.xcconfig"; sourceTree = "<group>"; };
+		CA0A358D28325BFD008D1C5B /* QSNamesSecureUnarchiverTransformer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QSNamesSecureUnarchiverTransformer.swift; sourceTree = "<group>"; };
 		CA7C10D0C507CB8A1AED2CA4 /* Pods_SyncKitCoreDataExampleTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SyncKitCoreDataExampleTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF48885C42DC972C58E33394 /* Pods-SyncKitCoreDataExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyncKitCoreDataExample.debug.xcconfig"; path = "../Pods/Target Support Files/Pods-SyncKitCoreDataExample/Pods-SyncKitCoreDataExample.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -329,6 +331,7 @@
 			children = (
 				64B46BF322B9629A0017268F /* QSTestEntity+CoreDataClass.swift */,
 				64B46BF422B9629A0017268F /* QSTestEntity+CoreDataProperties.swift */,
+				CA0A358D28325BFD008D1C5B /* QSNamesSecureUnarchiverTransformer.swift */,
 				64B46BE822B95D570017268F /* QSNamesTransformer.swift */,
 				64369246232EB25A004393B1 /* QSTestEntity2+CoreDataClass.swift */,
 				64369245232EB25A004393B1 /* QSTestEntity2+CoreDataProperties.swift */,
@@ -683,6 +686,7 @@
 				64369248232EB25A004393B1 /* QSTestEntity2+CoreDataClass.swift in Sources */,
 				64A452E2264C2B1F00133F64 /* QSCompany_Int+CoreDataClass.swift in Sources */,
 				64B46BE922B95D570017268F /* QSNamesTransformer.swift in Sources */,
+				CA0A358E28325BFD008D1C5B /* QSNamesSecureUnarchiverTransformer.swift in Sources */,
 				64A452D8264C2A2300133F64 /* QSCompany_UUID+CoreDataClass.swift in Sources */,
 				64B3A3B022B1A91500E4E942 /* MockKeyValueStore.swift in Sources */,
 				640C33E922AD8AA100A85508 /* FetchDatabaseChangesOperationTests.swift in Sources */,

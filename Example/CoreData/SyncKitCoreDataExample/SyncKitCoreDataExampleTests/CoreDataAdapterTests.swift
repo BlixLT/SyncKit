@@ -802,6 +802,120 @@ extension CoreDataAdapterTests {
 
 // MARK: - Transformable
 extension CoreDataAdapterTests {
+
+    func modelForSecureUnarchive() -> NSManagedObjectModel
+    {
+        // replace QSNamesTransformer with QSNamesSecureUnarchiverTransformer in the model
+        let modelURL = Bundle(for: CoreDataAdapterTests.self).url(forResource: "QSTransformableTestModel", withExtension: "momd")!
+        let model = NSManagedObjectModel(contentsOf: modelURL)!
+        model.entitiesByName.forEach { (key: String, value: NSEntityDescription) in
+            value.attributesByName.forEach { (key1: String, value1: NSAttributeDescription) in
+                if value1.attributeType == .transformableAttributeType
+                {
+                    if value1.valueTransformerName == "QSNamesTransformer"
+                    {
+                        value1.valueTransformerName = "QSNamesSecureUnarchiverTransformer"
+                    }
+                }
+            }
+        }
+        return model
+    }
+    
+    func sqliteStore (model:NSManagedObjectModel) -> CoreDataStack
+    {
+        let stack = CoreDataStack(storeType: NSSQLiteStoreType,
+                             model: model,
+                                  storeURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("appData.sqlite"),
+                                            concurrencyType: .mainQueueConcurrencyType,
+                             dispatchImmediately: true)
+        return stack
+    }
+    
+    func testValueTransformer_sqlite () {
+        /*if valueTransformer is kind of class ValueTransformer, then during context's save transformedValue: is being called */
+        QSNamesTransformer.register()
+        QSNamesTransformer.resetValues()
+        let modelURL = Bundle(for: CoreDataAdapterTests.self).url(forResource: "QSTransformableTestModel", withExtension: "momd")!
+        let model = NSManagedObjectModel(contentsOf: modelURL)!
+        targetCoreDataStack = self.sqliteStore(model: model)
+        
+        insert(entityType: "QSTestEntity",
+               properties: ["identifier": "identifier",
+                            "names": ["1", "2"]],
+               context: targetCoreDataStack.managedObjectContext)
+        XCTAssertFalse(QSNamesTransformer.transformedValueCalled)
+        XCTAssertTrue(QSNamesTransformer.reverseTransformedValueCalled)
+    }
+    
+    func testValueTransformer_secureUnarchive_sqlite () {
+        /*if valueTransformer is kind of class NSSecureUnarchiveFromDataTransformer, then during context's save reverseTransformedValue: is being called */
+        QSNamesSecureUnarchiverTransformer.register()
+        QSNamesSecureUnarchiverTransformer.resetValues()
+        let model = self.modelForSecureUnarchive()
+        targetCoreDataStack = self.sqliteStore(model: model)
+        
+        insert(entityType: "QSTestEntity",
+               properties: ["identifier": "identifier",
+                            "names": ["1", "2"]],
+               context: targetCoreDataStack.managedObjectContext)
+        XCTAssertFalse(QSNamesSecureUnarchiverTransformer.transformedValueCalled)
+        XCTAssertTrue(QSNamesSecureUnarchiverTransformer.reverseTransformedValueCalled)
+    }
+
+    func testRecordsToUploadWithLimit_transformableProperty_usesValueTransformer_sqlite () {
+        QSNamesTransformer.register()
+        QSNamesTransformer.resetValues()
+        let modelURL = Bundle(for: CoreDataAdapterTests.self).url(forResource: "QSTransformableTestModel", withExtension: "momd")!
+        let model = NSManagedObjectModel(contentsOf: modelURL)!
+        targetCoreDataStack = self.sqliteStore(model: model)
+        
+        insert(entityType: "QSTestEntity",
+               properties: ["identifier": "identifier",
+                            "names": ["1", "2"]],
+               context: targetCoreDataStack.managedObjectContext)
+        let adapter = createAdapter()
+        let records = waitUntilSynced(adapter: adapter).updated
+        XCTAssertEqual(records.count, 1)
+        // because we are using sqlite store, then both will be called - reverseTransformedValue: during context's save and  transformedValue: during execute fetch request
+        XCTAssertFalse(QSNamesTransformer.transformedValueCalled)
+        XCTAssertTrue(QSNamesTransformer.reverseTransformedValueCalled)
+
+        let record = records.first!
+        guard let namesData = record["names"] as? Data else {
+            XCTFail("Record property should be of data type")
+            return
+        }
+        let names = (try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSArray.self, from: namesData)) as? [String]
+        XCTAssertEqual(names, ["1", "2"])
+    }
+
+    func testRecordsToUploadWithLimit_transformableProperty_usesValueTransformer_secureunarchive_sqlite () {
+        QSNamesSecureUnarchiverTransformer.register()
+        QSNamesSecureUnarchiverTransformer.resetValues()
+        let model = self.modelForSecureUnarchive()
+        targetCoreDataStack = self.sqliteStore(model: model)
+        
+        insert(entityType: "QSTestEntity",
+               properties: ["identifier": "identifier",
+                            "names": ["1", "2"]],
+               context: targetCoreDataStack.managedObjectContext)
+        let adapter = createAdapter()
+        let records = waitUntilSynced(adapter: adapter).updated
+        XCTAssertEqual(records.count, 1)
+        // because we are using sqlite store, then both will be called - reverseTransformedValue: during context's save and  transformedValue: during execute fetch request
+        XCTAssertFalse(QSNamesSecureUnarchiverTransformer.transformedValueCalled)
+        XCTAssertTrue(QSNamesSecureUnarchiverTransformer.reverseTransformedValueCalled)
+
+        let record = records.first!
+        guard let namesData = record["names"] as? Data else {
+            XCTFail("Record property should be of data type")
+            return
+        }
+        let names = (try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSArray.self, from: namesData)) as? [String]
+        XCTAssertEqual(names, ["1", "2"])
+    }
+
     func testRecordsToUploadWithLimit_transformableProperty_usesValueTransformer() {
         QSNamesTransformer.register()
         QSNamesTransformer.resetValues()
