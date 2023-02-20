@@ -18,7 +18,8 @@ extension CloudKitSynchronizer {
         let zoneID = recordZoneID ?? CloudKitSynchronizer.defaultCustomZoneID
         let adapterProvider = DefaultCoreDataAdapterProvider(managedObjectContext: managedObjectContext,
                                                              zoneID: zoneID,
-                                                             appGroup: suiteName)
+                                                             appGroup: suiteName,
+                                                        adapterDelegate: nil)
         let userDefaults: UserDefaults! = suiteName != nil ? UserDefaults(suiteName: suiteName!) : UserDefaults.standard
         let container = CKContainer(identifier: containerName)
         let userDefaultsAdapter = UserDefaultsAdapter(userDefaults: userDefaults)

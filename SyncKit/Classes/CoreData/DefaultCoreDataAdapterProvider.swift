@@ -15,13 +15,15 @@ import CoreData
     @objc public let managedObjectContext: NSManagedObjectContext
     @objc public let appGroup: String?
     @objc public let isSandbox: Bool
+    @objc public let adapterDelegate: CoreDataAdapterDelegate?
     @objc public private(set) var adapter: CoreDataAdapter!
     
-    @objc public init(managedObjectContext: NSManagedObjectContext, zoneID: CKRecordZone.ID, appGroup: String? = nil, isSandbox: Bool = false) {
+    @objc public init(managedObjectContext: NSManagedObjectContext, zoneID: CKRecordZone.ID, appGroup: String? = nil, isSandbox: Bool = false, adapterDelegate: CoreDataAdapterDelegate?) {
         self.managedObjectContext = managedObjectContext
         self.zoneID = zoneID
         self.appGroup = appGroup
         self.isSandbox = isSandbox
+        self.adapterDelegate = adapterDelegate
         super.init()
         adapter = createAdapter()
     }
@@ -48,7 +50,7 @@ import CoreData
     
     fileprivate func createAdapter() -> CoreDataAdapter {
         
-        let delegate = DefaultCoreDataAdapterDelegate.shared
+        let delegate = self.adapterDelegate ?? DefaultCoreDataAdapterDelegate.shared
         let stack = CoreDataStack(storeType: NSSQLiteStoreType,
                                   model: CoreDataAdapter.persistenceModel,
                                   storeURL: DefaultCoreDataAdapterProvider.storeURL(appGroup: appGroup, isSandbox: isSandbox))
