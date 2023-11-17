@@ -111,14 +111,14 @@ extension CoreDataAdapter {
         return false
     }
     
-    func shouldIgnore(key: String) -> Bool {
+    func shouldIgnore(key: String, entity:NSEntityDescription) -> Bool {
         if key == CoreDataAdapter.timestampKey || CloudKitSynchronizer.metadataKeys.contains(key) || key == "ckOwnerName"
         {
             return true
         }
         if self.isShared()
         {
-            if key == "sortOrder" || key == "closed" || key == "eBankType" || key == "eBankURL" || key == "eBankBankID" || key == "eBankBankName" || key == "eBankAtriumMember" || key == "eBankAccountNumber" || key == "eBankStartDate" || key == "eBankAccountID" || key == "eBankAccountType" || key == "eBankAccountIsActivated" || key == "eBankSaltEdgeLoginSecret" || key == "folder"
+            if (key == "sortOrder" && entity.name != "BudgetRecord") || key == "closed" || key == "eBankType" || key == "eBankURL" || key == "eBankBankID" || key == "eBankBankName" || key == "eBankAtriumMember" || key == "eBankAccountNumber" || key == "eBankStartDate" || key == "eBankAccountID" || key == "eBankAccountType" || key == "eBankAccountIsActivated" || key == "eBankSaltEdgeLoginSecret" || key == "folder"
             {
                 return true
             }
@@ -509,7 +509,7 @@ extension CoreDataAdapter {
             let primaryKey = self.identifierFieldName(forEntity: entityType)
             // Add attributes
             entityDescription.attributesByName.forEach({ (attributeName, attributeDescription) in
-                if attributeName != primaryKey && !self.shouldIgnore(key: attributeName) &&
+                if attributeName != primaryKey && !self.shouldIgnore(key: attributeName, entity:entityDescription) &&
                     (entityState == .new || changedKeys.contains(attributeName)) {
                     let value = originalObject.value(forKey: attributeName)
                     if attributeDescription.attributeType == .binaryDataAttributeType && !self.forceDataTypeInsteadOfAsset,
@@ -728,7 +728,7 @@ extension CoreDataAdapter {
             switch mergePolicy {
             case .server:
                 object.entity.attributesByName.forEach { (attributeName, attributeDescription) in
-                    if !shouldIgnore(key: attributeName) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName {
+                    if !shouldIgnore(key: attributeName, entity: object.entity) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName {
                         assignAttributeValue(record[attributeName],
                                              toManagedObject: object,
                                              attributeName: attributeName,
@@ -737,7 +737,7 @@ extension CoreDataAdapter {
                 }
             case .client:
                 object.entity.attributesByName.forEach { (attributeName, attributeDescription) in
-                    if !shouldIgnore(key: attributeName) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName && !changedKeys.contains(attributeName) && state != .new {
+                    if !shouldIgnore(key: attributeName, entity: object.entity) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName && !changedKeys.contains(attributeName) && state != .new {
                         assignAttributeValue(record[attributeName],
                                              toManagedObject: object,
                                              attributeName: attributeName,
@@ -766,7 +766,7 @@ extension CoreDataAdapter {
             }
         } else {
             object.entity.attributesByName.forEach { (attributeName, attributeDescription) in
-                if !shouldIgnore(key: attributeName) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName {
+                if !shouldIgnore(key: attributeName, entity: object.entity) && !(record[attributeName] is CKRecord.Reference) && primaryKey != attributeName {
                     assignAttributeValue(record[attributeName],
                                          toManagedObject: object,
                                          attributeName: attributeName,
