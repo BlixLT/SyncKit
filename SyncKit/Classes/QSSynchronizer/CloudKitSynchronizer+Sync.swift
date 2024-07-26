@@ -633,6 +633,7 @@ extension CloudKitSynchronizer {
                     debugPrint(self.syncPhaseDescription(), "tried to delete:", recordIDs, "deleted:", deletedRecordIDs ?? "n/a deletedRecordIDs")
                     if self.isReferenceViolationError(error as NSError)
                     {
+                        debugPrint("will handle reference violation error")
                         self.handleReferenceViolationError(referrenceViolationError: error as NSError, adapter:adapter) { handleViolationError in
                             if let anError = handleViolationError {
                                 // if error received, stop
@@ -643,6 +644,7 @@ extension CloudKitSynchronizer {
                         }
                         return;
                     }
+                    debugPrint("error: ", error)
                 }
                 else
                 {
@@ -653,6 +655,7 @@ extension CloudKitSynchronizer {
                 
                 if let error = operationError {
                     // if error received, stop
+                    debugPrint("error received: ", error,". stop")
                     completion(error)
                     return
                 }
