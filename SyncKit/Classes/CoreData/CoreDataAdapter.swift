@@ -90,6 +90,14 @@ import CloudKit
                                                selector: #selector(targetContextObjectsDidChange(notification:)),
                                                name: .NSManagedObjectContextObjectsDidChange,
                                                object: targetContext)
+        if #available(macOS 10.14, *) {
+            NotificationCenter.default.addObserver(self,
+                                                   selector: #selector(remoteStore(notification:)),
+                                                   name: NSNotification.Name(rawValue:"MNCRemoteStoreChangeNotification"),
+                                                   object: nil)
+        } else {
+            // Fallback on earlier versions
+        }
 
         setupPrimaryKeysLookup()
         setupChildrenRelationshipsLookup()

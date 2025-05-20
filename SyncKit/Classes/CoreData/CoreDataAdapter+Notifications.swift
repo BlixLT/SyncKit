@@ -10,6 +10,14 @@ import Foundation
 import CoreData
 
 extension CoreDataAdapter {
+    @objc func remoteStore(notification: Notification) {
+        ddPrint("remote notification: \(notification)")
+        if let transaction = notification.object as? NSPersistentHistoryTransaction
+        {
+            self.process(transaction: transaction)
+        }
+    }
+    
     @objc func targetContextWillSave(notification: Notification) {
         if isMergingImportedChanges
         {
@@ -332,6 +340,123 @@ extension CoreDataAdapter {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+    
+    func process(transaction: NSPersistentHistoryTransaction) {
+        ddPrint("process transaction: \(transaction)")
+        var identifiersAndChanges = [String: [String]]()
+        var insertedIdentifiersAndEntityNames = [String: String]()
+        var allUpdateObjectIDs : [String] = [String]()
+        let deletedIDs: [String] = [] //TODO:
+        var updatedObjectsIdentifiersByManagedObjectInSelfZone = [NSManagedObject: String]()
+        for change in transaction.changes ?? [] {
+            switch change.changeType {
+            case .insert:
+                ddPrint("Inserted: \(change.changedObjectID)")
+                if let entityName = change.changedObjectID.entity.name,
+                    let identifier = self.uniqueIdentifier(for: self.targetContext.object(with: change.changedObjectID)) {
+                    insertedIdentifiersAndEntityNames[identifier] = entityName
+                }
+            case .update:
+                ddPrint("Updated: \(change.changedObjectID)")
+                var changedValueKeys = [String]()
+                if let updatedProperties = change.updatedProperties {
+                    ddPrint("Updated properties: \(updatedProperties)")
+                    for updatedProperty in updatedProperties {
+                        let key = updatedProperty.name
+                        let objectID = change.changedObjectID
+                        let relationship = objectID.entity.relationshipsByName[key]
+                        
+                        if objectID.entity.attributesByName[key] != nil ||
+                            (relationship != nil && relationship!.isToMany == false) {
+                            changedValueKeys.append(key)
+                        }
+                        else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
+                        {
+                            changedValueKeys.append(key)
+                        }
+                    }
+                }
+                if let identifier = uniqueIdentifier(for: self.targetContext.object(with: change.changedObjectID)),
+                    changedValueKeys.count > 0 {
+                    identifiersAndChanges[identifier] = changedValueKeys
+                    allUpdateObjectIDs.append(identifier)
+                    updatedObjectsIdentifiersByManagedObjectInSelfZone[self.targetContext.object(with: change.changedObjectID)] = identifier
+                }
+
+            case .delete:
+                ddPrint("Deleted: \(change.changedObjectID)")
+            default:
+                break
+            }
+        }
+        
+        if (self.privateContext == nil)
+        {
+            // adapter is being destroyed
+            return;
+        }
+        privateContext.perform {
+            for (identifier, objectChangedKeys) in identifiersAndChanges {
+                guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { continue }
+                
+                var changedKeys = Set<String>(entity.changedKeysArray)
+                for key in objectChangedKeys {
+                    changedKeys.insert(key)
+                }
+                entity.changedKeysArray = Array(changedKeys)
+                if entity.entityState == .synced && !entity.changedKeysArray.isEmpty {
+                    debugPrint(self.isShared(), "mark as changed:", entity.identifier ?? "n/a")
+                    entity.entityState = .changed
+                }
+                entity.updatedDate = NSDate()
+            }
+            
+            deletedIDs.forEach { (identifier) in
+                guard let entity = self.syncedEntity(withOriginIdentifier: identifier) else { return }
+                entity.entityState = .deleted
+                entity.updatedDate = NSDate()
+            }
+                            
+            // get trackedObjectIDs
+            let trackedObjects = self.fetchEntities(originObjectIDs:allUpdateObjectIDs)
+            let trackedObjectIDs = trackedObjects.compactMap { $0.originObjectID }
+
+            let updatedMutable = NSMutableSet()
+            updatedObjectsIdentifiersByManagedObjectInSelfZone.forEach { (managedObject, identifier) in
+                if trackedObjectIDs.contains(identifier)
+                {
+                    updatedMutable.add(managedObject)
+                }
+                else
+                {
+                    // if we are not tracking object - treat updated as inserted (probably moved from one owner to another)
+                    if let entityName = managedObject.entity.name {
+                        insertedIdentifiersAndEntityNames[identifier] = entityName
+                    }
+                }
+            }
+
+            let updatedCount = updatedMutable.count
+            
+            self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
+            
+            debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", insertedIdentifiersAndEntityNames.count, "insertions")
+            debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", updatedCount, "updates")
+            debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", deletedIDs.count, "deletions")
+            
+            let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || updatedCount > 0 || deletedIDs.count > 0
+
+            self.savePrivateContext()
+            
+            
+            if willHaveChanges {
+                self.hasChanges = true
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .ModelAdapterHasChangesNotification, object: self)
                 }
             }
         }
