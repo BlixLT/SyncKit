@@ -251,22 +251,35 @@ extension CoreDataAdapter {
             for entityDescription in entities {
                 guard let entityName = entityDescription.name else { continue }
                 let primaryKey = self.identifierFieldName(forEntity: entityName)
-                let objectIDs = try? self.targetContext.executeFetchRequest(entityName: entityName,
-                                                                            resultType: .dictionaryResultType,
-                                                                            propertiesToFetch: [primaryKey]) as? [[String: String]]
+                let objectIDExpression = NSExpression(forKeyPath: "self")
                 
-                let identifiers = objectIDs?.compactMap({
+//                let objectIDExpression = NSExpressionDescription()
+//                objectIDExpression.name = "objectID"
+//                objectIDExpression.expression = NSExpression.expressionForEvaluatedObject()
+//                objectIDExpression.expressionResultType = .objectIDAttributeType
+                let expressionDescription = NSExpressionDescription()
+                expressionDescription.name = "objectID"
+                expressionDescription.expression = NSExpression.expressionForEvaluatedObject()
+                expressionDescription.expressionResultType = .objectIDAttributeType
+                let identifiersAndobjectIDs = try? self.targetContext.executeFetchRequest(entityName: entityName,
+                                                                            resultType: .dictionaryResultType,
+                                                                            propertiesToFetch: [primaryKey, expressionDescription]) as? [[String: Any]]
+                var identifierByObjectID = NSMutableDictionary()
+                identifiersAndobjectIDs?.forEach {
+                    identifierByObjectID[$0[primaryKey]!] = ($0["objectID"] as? NSManagedObjectID)?.uriRepresentation().absoluteString
+                }
+                let identifiers : [String] = identifiersAndobjectIDs?.compactMap({
                     $0[primaryKey]
-                })
+                }) as! [String]
                 self.privateContext?.performAndWait {
                     // sometimes mncContextNeedsUIRefresh arrives earlier and some objects might be craeted already
-                    let existingSyncedEntities = self.fetchEntities(originObjectIDs: identifiers ?? [])
+                    let existingSyncedEntities = self.fetchEntities(originObjectIDs: identifiers)
                     let existingSyncedEntitiesObjectIDs = existingSyncedEntities.compactMap { $0.originObjectID }
 
-                    identifiers?.forEach {
+                    identifiers.forEach {
                         if !existingSyncedEntitiesObjectIDs.contains($0)
                         {
-                            self.createSyncedEntity(identifier: $0, entityName: entityName)
+                            self.createSyncedEntity(identifier: $0, entityName: entityName, managedObjectID: identifierByObjectID[$0] as? String)
                         }
                     }
                     self.savePrivateContext()

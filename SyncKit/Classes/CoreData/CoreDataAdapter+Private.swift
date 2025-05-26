@@ -269,7 +269,7 @@ extension CoreDataAdapter {
 
 //MARK: - Entities
 extension CoreDataAdapter {
-    func createSyncedEntity(identifier: String, entityName: String) {
+    func createSyncedEntity(identifier: String, entityName: String, managedObjectID: String?) {
         
         guard let entityDescription = NSEntityDescription.entity(forEntityName: "QSSyncedEntity", in: privateContext) else { return }
         let syncedEntity = QSSyncedEntity(entity: entityDescription, insertInto: privateContext)
@@ -279,6 +279,7 @@ extension CoreDataAdapter {
         syncedEntity.updatedDate = NSDate()
         syncedEntity.originObjectID = identifier
         syncedEntity.identifier = "\(entityName).\(identifier)"
+        syncedEntity.managedObjectID = managedObjectID
     }
     
     func createSyncedEntity(share: CKShare) -> QSSyncedEntity? {
@@ -321,6 +322,16 @@ extension CoreDataAdapter {
         }
         let fetched = try? self.privateContext.executeFetchRequest(entityName: "QSSyncedEntity",
                                                                    predicate: NSPredicate(format: "originObjectID == %@", identifier),
+                                                                   fetchLimit: 1) as? [QSSyncedEntity]
+        return fetched?.first
+    }
+    
+    func syncedEntity(withManagedObjectID idString: String) -> QSSyncedEntity? {
+        guard privateContext != nil else {
+            return nil
+        }
+        let fetched = try? self.privateContext.executeFetchRequest(entityName: "QSSyncedEntity",
+                                                                   predicate: NSPredicate(format: "mangedObjectID == %@", idString),
                                                                    fetchLimit: 1) as? [QSSyncedEntity]
         return fetched?.first
     }

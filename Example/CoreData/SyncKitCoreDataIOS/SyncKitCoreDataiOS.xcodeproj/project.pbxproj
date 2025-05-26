@@ -105,6 +105,7 @@
 		648D93DC22CBEF3700C01529 /* CloudKitSynchronizerOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CloudKitSynchronizerOperation.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/Operations/CloudKitSynchronizerOperation.swift; sourceTree = "<group>"; };
 		648D93DD22CBEF3700C01529 /* FetchZoneChangesOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = FetchZoneChangesOperation.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/Operations/FetchZoneChangesOperation.swift; sourceTree = "<group>"; };
 		64B3A3B922B54AEF00E4E942 /* QSManagedObjectContext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = QSManagedObjectContext.swift; path = ../../../../../SyncKit/Classes/CoreData/QSManagedObjectContext.swift; sourceTree = "<group>"; };
+		CA01198A2DDDBA79003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 4.xcdatamodel"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -808,11 +809,12 @@
 		6433B3FA22C0068E00EAC16C /* QSCloudKitSyncModel.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (
+				CA01198A2DDDBA79003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */,
 				6433B3FB22C0068E00EAC16C /* QSCloudKitSyncModel 2.xcdatamodel */,
 				6433B3FC22C0068E00EAC16C /* QSCloudKitSyncModel.xcdatamodel */,
 				6433B3FD22C0068E00EAC16C /* QSCloudKitSyncModel 3.xcdatamodel */,
 			);
-			currentVersion = 6433B3FD22C0068E00EAC16C /* QSCloudKitSyncModel 3.xcdatamodel */;
+			currentVersion = CA01198A2DDDBA79003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */;
 			name = QSCloudKitSyncModel.xcdatamodeld;
 			path = ../../../../../SyncKit/Classes/CoreData/QSCloudKitSyncModel.xcdatamodeld;
 			sourceTree = "<group>";

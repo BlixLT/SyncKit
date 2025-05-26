@@ -149,7 +149,7 @@ extension CoreDataAdapter {
 
                 let updatedCount = updatedMutable.count
                 
-                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
+                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames, identifiersAndManagedObjectIDs: nil)
                 
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", insertedIdentifiersAndEntityNames.count, "insertions")
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", updatedCount, "updates")
@@ -225,7 +225,7 @@ extension CoreDataAdapter {
 
                 let willHaveChanges = !insertedIdentifiersAndEntityNames.isEmpty || updatedCount > 0 || deletedCount > 0
 
-                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
+                self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames, identifiersAndManagedObjectIDs: nil)
                         
                 debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Did Save >> Tracking", inserted?.count ?? 0, "insertions")
 
@@ -348,9 +348,10 @@ extension CoreDataAdapter {
     func process(transaction: NSPersistentHistoryTransaction) {
         ddPrint("process transaction: \(transaction)")
         var identifiersAndChanges = [String: [String]]()
+        var identifiersAndManagedObjectIDs = [String: NSManagedObjectID]()
         var insertedIdentifiersAndEntityNames = [String: String]()
         var allUpdateObjectIDs : [String] = [String]()
-        let deletedIDs: [String] = [] //TODO:
+        var deletedIDs: [String] = [String]() //TODO:
         var updatedObjectsIdentifiersByManagedObjectInSelfZone = [NSManagedObject: String]()
         for change in transaction.changes ?? [] {
             switch change.changeType {
@@ -383,12 +384,16 @@ extension CoreDataAdapter {
                 if let identifier = uniqueIdentifier(for: self.targetContext.object(with: change.changedObjectID)),
                     changedValueKeys.count > 0 {
                     identifiersAndChanges[identifier] = changedValueKeys
+                    identifiersAndManagedObjectIDs[identifier] = change.changedObjectID
                     allUpdateObjectIDs.append(identifier)
                     updatedObjectsIdentifiersByManagedObjectInSelfZone[self.targetContext.object(with: change.changedObjectID)] = identifier
                 }
 
             case .delete:
                 ddPrint("Deleted: \(change.changedObjectID)")
+                guard let entity = self.syncedEntity(withManagedObjectID: change.changedObjectID.uriRepresentation().absoluteString) else { continue }
+                guard let identifier = entity.originObjectID else { continue }
+                deletedIDs.append(identifier)
             default:
                 break
             }
@@ -442,7 +447,7 @@ extension CoreDataAdapter {
 
             let updatedCount = updatedMutable.count
             
-            self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames)
+            self.handleInsertedIdentifiersAndEntityNames(insertedIdentifiersAndEntityNames, identifiersAndManagedObjectIDs: identifiersAndManagedObjectIDs)
             
             debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", insertedIdentifiersAndEntityNames.count, "insertions")
             debugPrint(self.isShared(), "QSCloudKitSynchronizer >> Will Save >> Tracking", updatedCount, "updates")
@@ -487,7 +492,7 @@ extension CoreDataAdapter {
         return object.value(forKey:ckOwnerNameKey)
     }
     
-    fileprivate func handleInsertedIdentifiersAndEntityNames(_ insertedIdentifiersAndEntityNames : [String: String])
+    fileprivate func handleInsertedIdentifiersAndEntityNames(_ insertedIdentifiersAndEntityNames : [String: String], identifiersAndManagedObjectIDs: [String : NSManagedObjectID]?)
     {
         let allIdentifiers = Array(insertedIdentifiersAndEntityNames.keys)
         let syncedEntities = self.fetchEntities(originObjectIDs:allIdentifiers)
@@ -496,10 +501,10 @@ extension CoreDataAdapter {
         }
         let existingIdentifiers = syncedEntities.compactMap ({ $0.originObjectID })
         let existingDeletedIdentifiers = deletedSyncedEntities.compactMap ({ $0.originObjectID })
-        insertedIdentifiersAndEntityNames.forEach({ (identifier, entityName) in
+        insertedIdentifiersAndEntityNames.forEach({ (identifier : String, entityName : String) in
             if !existingIdentifiers.contains(identifier)
             {
-                self.createSyncedEntity(identifier: identifier, entityName: entityName)
+                self.createSyncedEntity(identifier: identifier, entityName: entityName, managedObjectID:identifiersAndManagedObjectIDs?[identifier]?.uriRepresentation().absoluteString)
             }
             else
             {

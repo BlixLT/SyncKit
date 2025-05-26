@@ -14,7 +14,7 @@ extension NSManagedObjectContext {
                                     predicate: NSPredicate? = nil,
                                     fetchLimit: Int? = nil,
                                     resultType: NSFetchRequestResultType = .managedObjectResultType,
-                                    propertiesToFetch: [String]? = nil,
+                                    propertiesToFetch: [Any]? = nil,
                                     includesSubentities: Bool = false,
                                     preload: Bool = false) throws -> [NSFetchRequestResult] {
         

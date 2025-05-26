@@ -43,10 +43,10 @@
 		649236F822C7C1460074A142 /* QSServerToken+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40A22C006D000EAC16C /* QSServerToken+CoreDataProperties.swift */; };
 		649236F922C7C1460074A142 /* QSSyncedEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40522C006D000EAC16C /* QSSyncedEntity+CoreDataClass.swift */; };
 		649236FA22C7C1460074A142 /* QSSyncedEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40C22C006D000EAC16C /* QSSyncedEntity+CoreDataProperties.swift */; };
-		649236FB22C7C14D0074A142 /* QSCloudKitSyncModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */; };
 		91EF2FF2256BC6E100C96565 /* CocoaLumberjackSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF1256BC6E100C96565 /* CocoaLumberjackSwift */; };
 		91EF2FF4256BC6E100C96565 /* CocoaLumberjack in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF3256BC6E100C96565 /* CocoaLumberjack */; };
 		91EF2FF6256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend in Frameworks */ = {isa = PBXBuildFile; productRef = 91EF2FF5256BC6E100C96565 /* CocoaLumberjackSwiftLogBackend */; };
+		CA01199D2DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = CA0119982DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodeld */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -79,9 +79,6 @@
 		6433B40B22C006D000EAC16C /* QSRecord+CoreDataClass.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "QSRecord+CoreDataClass.swift"; path = "../../../../../SyncKit/Classes/CoreData/QSRecord+CoreDataClass.swift"; sourceTree = "<group>"; };
 		6433B40C22C006D000EAC16C /* QSSyncedEntity+CoreDataProperties.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "QSSyncedEntity+CoreDataProperties.swift"; path = "../../../../../SyncKit/Classes/CoreData/QSSyncedEntity+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		6433B40D22C006D000EAC16C /* QSPendingRelationship+CoreDataProperties.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "QSPendingRelationship+CoreDataProperties.swift"; path = "../../../../../SyncKit/Classes/CoreData/QSPendingRelationship+CoreDataProperties.swift"; sourceTree = "<group>"; };
-		6433B40F22C006D100EAC16C /* QSCloudKitSyncModel 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 2.xcdatamodel"; sourceTree = "<group>"; };
-		6433B41022C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = QSCloudKitSyncModel.xcdatamodel; sourceTree = "<group>"; };
-		6433B41122C006D100EAC16C /* QSCloudKitSyncModel 3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 3.xcdatamodel"; sourceTree = "<group>"; };
 		6433B41222C006D100EAC16C /* CoreDataMultiFetchedResultsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CoreDataMultiFetchedResultsController.swift; path = ../../../../../SyncKit/Classes/CoreData/CoreDataMultiFetchedResultsController.swift; sourceTree = "<group>"; };
 		6433B41322C006D100EAC16C /* DefaultCoreDataAdapterDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DefaultCoreDataAdapterDelegate.swift; path = ../../../../../SyncKit/Classes/CoreData/DefaultCoreDataAdapterDelegate.swift; sourceTree = "<group>"; };
 		6433B41422C006D100EAC16C /* DefaultCoreDataStackProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DefaultCoreDataStackProvider.swift; path = ../../../../../SyncKit/Classes/CoreData/DefaultCoreDataStackProvider.swift; sourceTree = "<group>"; };
@@ -104,6 +101,10 @@
 		648D93F322CBEF5600C01529 /* CloudKitSynchronizer+Sync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "CloudKitSynchronizer+Sync.swift"; path = "../../../../../SyncKit/Classes/QSSynchronizer/CloudKitSynchronizer+Sync.swift"; sourceTree = "<group>"; };
 		648D93F422CBEF5600C01529 /* ModelAdapter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ModelAdapter.swift; path = ../../../../../SyncKit/Classes/QSSynchronizer/ModelAdapter.swift; sourceTree = "<group>"; };
 		649236DF22C7C1230074A142 /* SyncKitCoreDataOSX.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncKitCoreDataOSX.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA0119992DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = QSCloudKitSyncModel.xcdatamodel; sourceTree = "<group>"; };
+		CA01199A2DDDBB44003EE3BB /* QSCloudKitSyncModel 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 2.xcdatamodel"; sourceTree = "<group>"; };
+		CA01199B2DDDBB44003EE3BB /* QSCloudKitSyncModel 3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 3.xcdatamodel"; sourceTree = "<group>"; };
+		CA01199C2DDDBB44003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "QSCloudKitSyncModel 4.xcdatamodel"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -162,10 +163,10 @@
 				6433B40822C006D000EAC16C /* DefaultCoreDataAdapterProvider.swift */,
 				6433B41422C006D100EAC16C /* DefaultCoreDataStackProvider.swift */,
 				6433B41522C006D100EAC16C /* NSManagedObjectContext+Fetch.swift */,
-				6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */,
 				6433B40722C006D000EAC16C /* QSManagedObjectContext.swift */,
 				6433B40222C006D000EAC16C /* QSPendingRelationship+CoreDataClass.swift */,
 				6433B40D22C006D000EAC16C /* QSPendingRelationship+CoreDataProperties.swift */,
+				CA0119982DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodeld */,
 				6433B40B22C006D000EAC16C /* QSRecord+CoreDataClass.swift */,
 				6433B40322C006D000EAC16C /* QSRecord+CoreDataProperties.swift */,
 				6433B40422C006D000EAC16C /* QSServerToken+CoreDataClass.swift */,
@@ -295,7 +296,6 @@
 			files = (
 				648D93FF22CBEF5600C01529 /* KeyValueStore.swift in Sources */,
 				648D93FD22CBEF5600C01529 /* CloudKitDatabase.swift in Sources */,
-				649236FB22C7C14D0074A142 /* QSCloudKitSyncModel.xcdatamodeld in Sources */,
 				649236ED22C7C1430074A142 /* CoreDataStack.swift in Sources */,
 				649236F322C7C1460074A142 /* QSPendingRelationship+CoreDataClass.swift in Sources */,
 				648D940122CBEF5600C01529 /* ModelAdapter.swift in Sources */,
@@ -328,6 +328,7 @@
 				649236F922C7C1460074A142 /* QSSyncedEntity+CoreDataClass.swift in Sources */,
 				648D93F622CBEF5600C01529 /* CloudKitSynchronizer+Private.swift in Sources */,
 				648D93F522CBEF5600C01529 /* QSCoder.swift in Sources */,
+				CA01199D2DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodeld in Sources */,
 				649236F622C7C1460074A142 /* QSRecord+CoreDataProperties.swift in Sources */,
 				649236F122C7C1430074A142 /* NSManagedObjectContext+Fetch.swift in Sources */,
 			);
@@ -779,16 +780,16 @@
 /* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
-		6433B40E22C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodeld */ = {
+		CA0119982DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (
-				6433B40F22C006D100EAC16C /* QSCloudKitSyncModel 2.xcdatamodel */,
-				6433B41022C006D100EAC16C /* QSCloudKitSyncModel.xcdatamodel */,
-				6433B41122C006D100EAC16C /* QSCloudKitSyncModel 3.xcdatamodel */,
+				CA0119992DDDBB44003EE3BB /* QSCloudKitSyncModel.xcdatamodel */,
+				CA01199A2DDDBB44003EE3BB /* QSCloudKitSyncModel 2.xcdatamodel */,
+				CA01199B2DDDBB44003EE3BB /* QSCloudKitSyncModel 3.xcdatamodel */,
+				CA01199C2DDDBB44003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */,
 			);
-			currentVersion = 6433B41122C006D100EAC16C /* QSCloudKitSyncModel 3.xcdatamodel */;
-			name = QSCloudKitSyncModel.xcdatamodeld;
-			path = ../../../../../SyncKit/Classes/CoreData/QSCloudKitSyncModel.xcdatamodeld;
+			currentVersion = CA01199C2DDDBB44003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */;
+			path = QSCloudKitSyncModel.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;
 		};

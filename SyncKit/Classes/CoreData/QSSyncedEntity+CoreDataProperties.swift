@@ -20,6 +20,7 @@ extension QSSyncedEntity {
     @NSManaged public var entityType: String?
     @NSManaged public var identifier: String?
     @NSManaged public var originObjectID: String?
+    @NSManaged public var managedObjectID: String?
     @NSManaged public var state: NSNumber?
     @NSManaged public var updatedDate: NSDate?
     @NSManaged public var pendingRelationships: NSSet?
