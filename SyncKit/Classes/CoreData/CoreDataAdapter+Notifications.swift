@@ -357,38 +357,53 @@ extension CoreDataAdapter {
             switch change.changeType {
             case .insert:
                 ddPrint("Inserted: \(change.changedObjectID)")
-                if let entityName = change.changedObjectID.entity.name,
-                    let identifier = self.uniqueIdentifier(for: self.targetContext.object(with: change.changedObjectID)) {
-                    insertedIdentifiersAndEntityNames[identifier] = entityName
+                do {
+                    let managedObject = try self.targetContext.existingObject(with: change.changedObjectID)
+                    if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: managedObject), self.sharedZoneOwnerName())
+                    {
+                        if let entityName = change.changedObjectID.entity.name,
+                           let identifier = self.uniqueIdentifier(for: managedObject) {
+                            insertedIdentifiersAndEntityNames[identifier] = entityName
+                        }
+                    }
+                } catch {
+                    ddPrint("error: \(error)")
                 }
             case .update:
                 ddPrint("Updated: \(change.changedObjectID)")
-                var changedValueKeys = [String]()
-                if let updatedProperties = change.updatedProperties {
-                    ddPrint("Updated properties: \(updatedProperties)")
-                    for updatedProperty in updatedProperties {
-                        let key = updatedProperty.name
-                        let objectID = change.changedObjectID
-                        let relationship = objectID.entity.relationshipsByName[key]
-                        
-                        if objectID.entity.attributesByName[key] != nil ||
-                            (relationship != nil && relationship!.isToMany == false) {
-                            changedValueKeys.append(key)
+                do {
+                    let managedObject = try self.targetContext.existingObject(with: change.changedObjectID)
+                    if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: managedObject), self.sharedZoneOwnerName())
+                    {
+                        var changedValueKeys = [String]()
+                        if let updatedProperties = change.updatedProperties {
+                            ddPrint("Updated properties: \(updatedProperties)")
+                            for updatedProperty in updatedProperties {
+                                let key = updatedProperty.name
+                                let objectID = change.changedObjectID
+                                let relationship = objectID.entity.relationshipsByName[key]
+                                
+                                if objectID.entity.attributesByName[key] != nil ||
+                                    (relationship != nil && relationship!.isToMany == false) {
+                                    changedValueKeys.append(key)
+                                }
+                                else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
+                                {
+                                    changedValueKeys.append(key)
+                                }
+                            }
                         }
-                        else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
-                        {
-                            changedValueKeys.append(key)
+                        if let identifier = uniqueIdentifier(for: managedObject),
+                            changedValueKeys.count > 0 {
+                            identifiersAndChanges[identifier] = changedValueKeys
+                            identifiersAndManagedObjectIDs[identifier] = change.changedObjectID
+                            allUpdateObjectIDs.append(identifier)
+                            updatedObjectsIdentifiersByManagedObjectInSelfZone[managedObject] = identifier
                         }
                     }
+                } catch {
+                    ddPrint("error: \(error)")
                 }
-                if let identifier = uniqueIdentifier(for: self.targetContext.object(with: change.changedObjectID)),
-                    changedValueKeys.count > 0 {
-                    identifiersAndChanges[identifier] = changedValueKeys
-                    identifiersAndManagedObjectIDs[identifier] = change.changedObjectID
-                    allUpdateObjectIDs.append(identifier)
-                    updatedObjectsIdentifiersByManagedObjectInSelfZone[self.targetContext.object(with: change.changedObjectID)] = identifier
-                }
-
             case .delete:
                 ddPrint("Deleted: \(change.changedObjectID)")
                 guard let entity = self.syncedEntity(withManagedObjectID: change.changedObjectID.uriRepresentation().absoluteString) else { continue }
