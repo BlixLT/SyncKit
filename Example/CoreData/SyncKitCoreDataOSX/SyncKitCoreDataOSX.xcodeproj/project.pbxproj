@@ -789,7 +789,8 @@
 				CA01199C2DDDBB44003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */,
 			);
 			currentVersion = CA01199C2DDDBB44003EE3BB /* QSCloudKitSyncModel 4.xcdatamodel */;
-			path = QSCloudKitSyncModel.xcdatamodeld;
+			name = QSCloudKitSyncModel.xcdatamodeld;
+			path = ../../../../../SyncKit/Classes/CoreData/QSCloudKitSyncModel.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;
 		};
