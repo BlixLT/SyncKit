@@ -331,7 +331,7 @@ extension CoreDataAdapter {
             return nil
         }
         let fetched = try? self.privateContext.executeFetchRequest(entityName: "QSSyncedEntity",
-                                                                   predicate: NSPredicate(format: "mangedObjectID == %@", idString),
+                                                                   predicate: NSPredicate(format: "managedObjectID == %@", idString),
                                                                    fetchLimit: 1) as? [QSSyncedEntity]
         return fetched?.first
     }
