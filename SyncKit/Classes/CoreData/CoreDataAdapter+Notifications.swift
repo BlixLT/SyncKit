@@ -373,32 +373,81 @@ extension CoreDataAdapter {
                 ddPrint("Updated: \(change.changedObjectID)")
                 do {
                     let managedObject = try self.targetContext.existingObject(with: change.changedObjectID)
-                    if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: managedObject), self.sharedZoneOwnerName())
-                    {
-                        var changedValueKeys = [String]()
-                        if let updatedProperties = change.updatedProperties {
-                            ddPrint("Updated properties: \(updatedProperties)")
-                            for updatedProperty in updatedProperties {
-                                let key = updatedProperty.name
-                                let objectID = change.changedObjectID
-                                let relationship = objectID.entity.relationshipsByName[key]
-                                
-                                if objectID.entity.attributesByName[key] != nil ||
-                                    (relationship != nil && relationship!.isToMany == false) {
-                                    changedValueKeys.append(key)
-                                }
-                                else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
-                                {
-                                    changedValueKeys.append(key)
-                                }
+                    var changedValueKeys = [String]()
+                    var ckOwnerNameDidChange = false
+                    var primaryKeyDidChange = false
+                    let ckOwnerNameKey = "ckOwnerName"
+                    let primaryKey = "uniqueIdentifier"
+                    if let updatedProperties = change.updatedProperties {
+                        ddPrint("Updated properties: \(updatedProperties)")
+                        for updatedProperty in updatedProperties {
+                            let key = updatedProperty.name
+                            if key == ckOwnerNameKey
+                            {
+                                ckOwnerNameDidChange = true
+                            }
+                            if key == primaryKey
+                            {
+                                primaryKeyDidChange = true
+                            }
+                            let objectID = change.changedObjectID
+                            let relationship = objectID.entity.relationshipsByName[key]
+                            
+                            if objectID.entity.attributesByName[key] != nil ||
+                                (relationship != nil && relationship!.isToMany == false) {
+                                changedValueKeys.append(key)
+                            }
+                            else if relationship != nil && relationship!.isToMany && (relationship!.inverseRelationship != nil) && relationship!.inverseRelationship!.isToMany
+                            {
+                                changedValueKeys.append(key)
                             }
                         }
-                        if let identifier = uniqueIdentifier(for: managedObject),
-                            changedValueKeys.count > 0 {
-                            identifiersAndChanges[identifier] = changedValueKeys
-                            identifiersAndManagedObjectIDs[identifier] = change.changedObjectID
-                            allUpdateObjectIDs.append(identifier)
-                            updatedObjectsIdentifiersByManagedObjectInSelfZone[managedObject] = identifier
+                    }
+                    if self.areSharingIdentifiersEqual(self.sharingIdentifier(for: managedObject), self.sharedZoneOwnerName())
+                    {
+                        if ckOwnerNameDidChange
+                        {
+                            // mark as new (managedObject changed ckOwner, so it is new in this zone))
+                            if let entityName = change.changedObjectID.entity.name,
+                               let identifier = self.uniqueIdentifier(for: managedObject) {
+                                insertedIdentifiersAndEntityNames[identifier] = entityName
+                            }
+                        }
+                        else
+                        {
+                            if let identifier = uniqueIdentifier(for: managedObject),
+                                changedValueKeys.count > 0 {
+                                identifiersAndChanges[identifier] = changedValueKeys
+                                identifiersAndManagedObjectIDs[identifier] = change.changedObjectID
+                                allUpdateObjectIDs.append(identifier)
+                                updatedObjectsIdentifiersByManagedObjectInSelfZone[managedObject] = identifier
+                            }
+                        }
+                        
+                        if primaryKeyDidChange
+                        {
+                            // fix duplicated uniqueIdentifiers
+                            guard let entity = self.syncedEntity(withManagedObjectID: change.changedObjectID.uriRepresentation().absoluteString) else { continue }
+                            let managedObject = try self.targetContext.existingObject(with: change.changedObjectID)
+                            if let identifier = uniqueIdentifier(for: managedObject)
+                            {
+                                entity.entityState = .new
+                                entity.changedKeys = nil
+                                entity.record = nil
+                                debugPrint(self.isShared(), "oldIdentifier ", entity.originObjectID ?? "n/a", "-> newIdentifier ", identifier)
+                                entity.identifier = String(format:"%@.%@",entity.entityType ?? "", identifier)
+                                entity.originObjectID = identifier
+                            }
+                        }
+                    }
+                    else // !self.areSharingIdentifiersEqual(self.sharingIdentifier(for: managedObject), self.sharedZoneOwnerName())
+                    {
+                        if ckOwnerNameDidChange
+                        {
+                            // remove from self zone's objects, if existed before
+                            guard let entity = self.syncedEntity(withManagedObjectID: change.changedObjectID.uriRepresentation().absoluteString) else { continue }
+                            guard let identifier = entity.originObjectID else { continue }
+                            deletedIDs.append(identifier)
                         }
                     }
                 } catch {
